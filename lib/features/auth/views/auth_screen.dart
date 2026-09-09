@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../shell/main_adaptive_shell.dart';
+import '../models/user_model.dart';
 import '../providers/auth_provider.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -89,21 +90,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
-  String _parseAuthError(dynamic error) {
+  String _parseAuthError(dynamic error, {bool isSignUp = false}) {
     if (error is AuthException) {
       final msg = error.message.toLowerCase();
-      if (msg.contains('invalid login credentials') ||
-          msg.contains('invalid credentials') ||
-          msg.contains('user not found') ||
-          msg.contains('wrong password') ||
-          msg.contains('invalid password')) {
-        return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+      if (!isSignUp) {
+        if (msg.contains('invalid login credentials') ||
+            msg.contains('invalid credentials') ||
+            msg.contains('user not found') ||
+            msg.contains('wrong password') ||
+            msg.contains('invalid password')) {
+          return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali.';
+        }
       }
-      if (msg.contains('already registered') ||
-          msg.contains('user already exists') ||
-          msg.contains('email address already taken') ||
-          msg.contains('already been taken')) {
-        return 'Email sudah terdaftar. Silakan masuk.';
+      if (isSignUp) {
+        if (msg.contains('already registered') ||
+            msg.contains('user already exists') ||
+            msg.contains('email address already taken') ||
+            msg.contains('already been taken')) {
+          return 'Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.';
+        }
       }
       if (msg.contains('invalid email') || msg.contains('format')) {
         return 'Format email tidak valid.';
@@ -115,14 +120,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
 
     final str = error.toString().toLowerCase();
-    if (str.contains('no account found') ||
-        str.contains('incorrect password') ||
-        str.contains('invalid credentials') ||
-        str.contains('credentials')) {
-      return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+    if (!isSignUp) {
+      if (str.contains('no account found') ||
+          str.contains('incorrect password') ||
+          str.contains('invalid credentials') ||
+          str.contains('credentials')) {
+        return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali.';
+      }
     }
-    if (str.contains('already exists') || str.contains('already registered')) {
-      return 'Email sudah terdaftar. Silakan masuk.';
+    if (isSignUp) {
+      if (str.contains('already exists') || str.contains('already registered')) {
+        return 'Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.';
+      }
     }
     if (str.contains('valid email')) {
       return 'Format email tidak valid.';
@@ -206,7 +215,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _startResendTimer();
       _showErrorFeedback(e.message);
     } catch (e) {
-      final friendly = _parseAuthError(e);
+      final friendly = _parseAuthError(e, isSignUp: _isSignUp);
       _showErrorFeedback(friendly);
     } finally {
       if (mounted) {
@@ -235,7 +244,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await notifier.verifyEmailOtp(email: email, code: code);
       _navigateToDashboard();
     } catch (e) {
-      final friendly = _parseAuthError(e);
+      final friendly = _parseAuthError(e, isSignUp: false);
       _showErrorFeedback(friendly);
     } finally {
       if (mounted) {
@@ -257,7 +266,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _successMessage = 'Kode konfirmasi baru telah dikirimkan ke email Anda.';
       });
     } catch (e) {
-      final friendly = _parseAuthError(e);
+      final friendly = _parseAuthError(e, isSignUp: false);
       _showErrorFeedback(friendly);
     }
   }
@@ -277,9 +286,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     try {
       await ref.read(authNotifierProvider.notifier).signInGoogle();
-      _navigateToDashboard();
+      if (mounted) {
+        _navigateToDashboard();
+      }
     } catch (e) {
-      final friendly = _parseAuthError(e);
+      final friendly = _parseAuthError(e, isSignUp: false);
       _showErrorFeedback(friendly);
     } finally {
       if (mounted) {
@@ -340,7 +351,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authNotifierProvider.notifier).signInGuest();
       _navigateToDashboard();
     } catch (e) {
-      final friendly = _parseAuthError(e);
+      final friendly = _parseAuthError(e, isSignUp: false);
       _showErrorFeedback(friendly);
     } finally {
       if (mounted) {
@@ -349,8 +360,328 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
+  void _showForgotPasswordDialog() {
+    final emailController = TextEditingController(text: _emailController.text.trim());
+    bool isSubmitting = false;
+    String? localError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBorderSubtle,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGlow,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.lock_reset_rounded, color: AppColors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Atur Ulang Kata Sandi',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Kirim tautan pemulihan ke alamat email Anda',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (localError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.expenseBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.expense.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      localError!,
+                      style: const TextStyle(color: AppColors.expense, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: const InputDecoration(
+                    labelText: 'Alamat Email',
+                    hintText: 'nama@example.com',
+                    prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.textMuted, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final email = emailController.text.trim();
+                          if (email.isEmpty || !email.contains('@')) {
+                            setSheetState(() => localError = 'Masukkan alamat email yang valid.');
+                            return;
+                          }
+                          setSheetState(() {
+                            isSubmitting = true;
+                            localError = null;
+                          });
+                          try {
+                            await ref.read(authNotifierProvider.notifier).resetPasswordForEmail(email);
+                            if (sheetContext.mounted) {
+                              Navigator.of(sheetContext).pop();
+                            }
+                            if (mounted) {
+                              setState(() {
+                                _successMessage =
+                                    'Tautan atur ulang kata sandi telah dikirim ke $email. Silakan periksa email Anda.';
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Tautan pemulihan dikirim ke $email.'),
+                                  backgroundColor: AppColors.income,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setSheetState(() {
+                              isSubmitting = false;
+                              localError = _parseAuthError(e, isSignUp: false);
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Kirim Tautan Pemulihan',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _showMagicLinkDialog() {
+    final emailController = TextEditingController(text: _emailController.text.trim());
+    bool isSubmitting = false;
+    String? localError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) {
+          return Padding(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBorderSubtle,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGlow,
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.auto_awesome_rounded, color: AppColors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 14),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Masuk Tanpa Kata Sandi',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Kirim Magic Link ke email Anda untuk login sekali klik',
+                            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (localError != null) ...[
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.expenseBg,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.expense.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      localError!,
+                      style: const TextStyle(color: AppColors.expense, fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                ],
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+                  decoration: const InputDecoration(
+                    labelText: 'Alamat Email',
+                    hintText: 'nama@example.com',
+                    prefixIcon: Icon(Icons.mail_outline_rounded, color: AppColors.textMuted, size: 20),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          final email = emailController.text.trim();
+                          if (email.isEmpty || !email.contains('@')) {
+                            setSheetState(() => localError = 'Masukkan alamat email yang valid.');
+                            return;
+                          }
+                          setSheetState(() {
+                            isSubmitting = true;
+                            localError = null;
+                          });
+                          try {
+                            await ref.read(authNotifierProvider.notifier).signInWithMagicLink(email);
+                            if (ctx.mounted) {
+                              Navigator.of(ctx).pop();
+                            }
+                            if (mounted) {
+                              setState(() {
+                                _successMessage =
+                                    'Magic Link telah dikirim ke $email. Buka email Anda untuk langsung masuk.';
+                              });
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Magic Link dikirim ke $email.'),
+                                  backgroundColor: AppColors.income,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            setSheetState(() {
+                              isSubmitting = false;
+                              localError = _parseAuthError(e, isSignUp: false);
+                            });
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                        )
+                      : const Text(
+                          'Kirim Magic Link',
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+                        ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    ref.listen<AsyncValue<AppUser?>>(authNotifierProvider, (previous, next) {
+      if (next.value != null && mounted) {
+        _navigateToDashboard();
+      }
+    });
+
     final authState = ref.watch(authNotifierProvider);
     final notifier = ref.read(authNotifierProvider.notifier);
     final strings = ref.watch(appStringsProvider);
@@ -793,11 +1124,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             TextFormField(
               controller: _nameController,
               style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+              onChanged: (val) {
+                if (_errorMessage != null) setState(() => _errorMessage = null);
+              },
               decoration: InputDecoration(
                 labelText: strings.fullNameLabel,
                 hintText: 'e.g. Alex Mercer',
                 prefixIcon: const Icon(Icons.person_outline_rounded, color: AppColors.textMuted, size: 20),
               ),
+              validator: (val) {
+                if (_isSignUp && (val == null || val.trim().isEmpty)) {
+                  return 'Nama lengkap wajib diisi';
+                }
+                return null;
+              },
             ),
             const SizedBox(height: 14),
           ],
@@ -807,14 +1147,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            onChanged: (val) {
+              if (_errorMessage != null) setState(() => _errorMessage = null);
+            },
             decoration: InputDecoration(
               labelText: strings.emailLabel,
               hintText: 'name@example.com',
               prefixIcon: const Icon(Icons.mail_outline_rounded, color: AppColors.textMuted, size: 20),
             ),
             validator: (val) {
-              if (val == null || val.trim().isEmpty) return 'Email is required';
-              if (!val.contains('@') || !val.contains('.')) return 'Enter a valid email';
+              if (val == null || val.trim().isEmpty) return 'Email wajib diisi';
+              final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+              if (!emailRegex.hasMatch(val.trim())) return 'Format email tidak valid (contoh: nama@domain.com)';
               return null;
             },
           ),
@@ -826,6 +1170,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             obscureText: _obscurePassword,
             style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
             onChanged: (v) {
+              if (_errorMessage != null) setState(() => _errorMessage = null);
               if (_isSignUp) setState(() {});
             },
             decoration: InputDecoration(
@@ -842,16 +1187,63 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               ),
             ),
             validator: (val) {
-              if (val == null || val.trim().isEmpty) return 'Password is required';
-              if (val.trim().length < 8) return 'Password must be at least 8 characters';
+              if (val == null || val.trim().isEmpty) return 'Kata sandi wajib diisi';
+              if (val.trim().length < 8) return 'Kata sandi minimal 8 karakter';
               if (_isSignUp) {
                 if (!RegExp(r'[A-Za-z]').hasMatch(val) || !RegExp(r'[0-9]').hasMatch(val)) {
-                  return 'Must contain both letters and numbers';
+                  return 'Kata sandi harus memuat kombinasi huruf dan angka';
                 }
               }
               return null;
             },
           ),
+
+          // Forgot Password & Magic Link Row (Sign In mode)
+          if (!_isSignUp) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: Wrap(
+                alignment: WrapAlignment.spaceBetween,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                runSpacing: 4,
+                children: [
+                  TextButton(
+                    onPressed: isLoading ? null : _showMagicLinkDialog,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(50, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Masuk dengan Magic Link',
+                      style: TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: isLoading ? null : _showForgotPasswordDialog,
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size(50, 30),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    child: const Text(
+                      'Lupa Kata Sandi?',
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           // Password Strength Bar (Sign Up mode only)
           if (_isSignUp && _passwordController.text.isNotEmpty) ...[

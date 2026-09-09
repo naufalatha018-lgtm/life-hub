@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/crypto/session_key_holder.dart';
 import '../../../core/database/vault_files_dao.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../notes/providers/notes_auth_provider.dart';
 import '../models/vault_file_item.dart';
 
@@ -20,14 +21,16 @@ final decryptedVaultFilesProvider =
     StateNotifierProvider<VaultFilesNotifier, AsyncValue<List<VaultFileItem>>>((ref) {
   final dao = ref.watch(vaultFilesDaoProvider);
   final keyHolder = ref.watch(sessionKeyHolderProvider);
-  return VaultFilesNotifier(dao, keyHolder);
+  final userId = ref.watch(currentUserIdProvider);
+  return VaultFilesNotifier(dao, keyHolder, userId);
 });
 
 class VaultFilesNotifier extends StateNotifier<AsyncValue<List<VaultFileItem>>> {
   final VaultFilesDao _dao;
   final SessionKeyHolder _keyHolder;
+  final String? _userId;
 
-  VaultFilesNotifier(this._dao, this._keyHolder) : super(const AsyncValue.data([]));
+  VaultFilesNotifier(this._dao, this._keyHolder, [this._userId]) : super(const AsyncValue.data([]));
 
   Future<Directory> _getVaultDirectory() async {
     final appDocDir = await getApplicationDocumentsDirectory();
@@ -47,7 +50,7 @@ class VaultFilesNotifier extends StateNotifier<AsyncValue<List<VaultFileItem>>> 
     state = const AsyncValue.loading();
     try {
       final key = _keyHolder.derivedKey!;
-      final rows = await _dao.getAllVaultFiles();
+      final rows = await _dao.getAllVaultFiles(_userId);
       final List<VaultFileItem> items = [];
 
       for (final row in rows) {
@@ -144,7 +147,7 @@ class VaultFilesNotifier extends StateNotifier<AsyncValue<List<VaultFileItem>>> 
         decryptedMimeType: mimeGuess,
       );
 
-      await _dao.insertVaultFile(vaultItem.toMap());
+      await _dao.insertVaultFile(vaultItem.toMap(), _userId);
     }
 
     await loadDecryptedFiles();
@@ -188,7 +191,7 @@ class VaultFilesNotifier extends StateNotifier<AsyncValue<List<VaultFileItem>>> 
       if (diskFile.existsSync()) {
         diskFile.deleteSync();
       }
-      await _dao.deleteVaultFile(item.id);
+      await _dao.deleteVaultFile(item.id, _userId);
 
       state.whenData((items) {
         state = AsyncValue.data(items.where((f) => f.id != item.id).toList());

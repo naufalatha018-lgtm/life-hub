@@ -14,6 +14,11 @@ import '../../finance/providers/wallets_provider.dart';
 import '../../habits/providers/habits_provider.dart';
 import '../../tasks/providers/tasks_providers.dart';
 import '../../wellness/providers/health_sync_provider.dart';
+import '../../focus/providers/focus_provider.dart';
+import '../../notes/providers/notes_auth_provider.dart';
+import '../../notes/providers/notes_crud_provider.dart';
+import '../../vault/providers/vault_files_provider.dart';
+import '../../wellness/providers/wellness_provider.dart';
 import '../models/user_model.dart';
 
 class UnverifiedAccountException implements Exception {
@@ -30,6 +35,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   final FlutterSecureStorage _storage;
   final Ref? _ref;
   static const _sessionKey = 'active_auth_user_id';
+  static const String guestLocalUserId = 'guest_local_user';
 
   String? _pendingVerificationEmail;
   String? _lastSentVerificationCode;
@@ -38,7 +44,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     checkSession();
   }
 
-  String get currentUserId => state.value?.id ?? 'guest_default';
+  String get currentUserId => state.value?.id ?? guestLocalUserId;
   String? get pendingVerificationEmail => _pendingVerificationEmail;
   String? get lastSentVerificationCode => _lastSentVerificationCode;
 
@@ -497,8 +503,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
             idToken: idToken,
             accessToken: accessToken,
           );
-          supabaseUserId = authRes.user?.id;
-          debugPrint('Supabase Google Sign-In session established: $supabaseUserId');
+          final session = authRes.session ?? SupabaseService.instance.client!.auth.currentSession;
+          if (session != null) {
+            supabaseUserId = authRes.user?.id ?? SupabaseService.instance.client!.auth.currentUser?.id;
+            debugPrint('Supabase Google Sign-In session verified: $supabaseUserId');
+          }
         } catch (e) {
           debugPrint('Supabase Google Sign-In link error: $e');
         }
@@ -580,7 +589,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     state = const AsyncValue.loading();
     try {
       final now = DateTime.now();
-      final guestId = 'guest_${now.microsecondsSinceEpoch}';
+      const guestId = guestLocalUserId;
       final guestUser = AppUser(
         id: guestId,
         email: 'guest@lifehub.local',
@@ -605,7 +614,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         'verification_code': null,
         'created_at': guestUser.createdAt.millisecondsSinceEpoch,
         'last_login_at': guestUser.lastLoginAt.millisecondsSinceEpoch,
-      });
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
       await _storage.write(key: _sessionKey, value: guestUser.id);
       _pendingVerificationEmail = null;
@@ -734,6 +743,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     state = const AsyncValue.data(null);
   }
 
+  Future<void> resetPasswordForEmail(String email) async {
+    await SupabaseService.instance.resetPasswordForEmail(email);
+  }
+
+  Future<void> signInWithMagicLink(String email) async {
+    await SupabaseService.instance.signInWithMagicLink(email);
+  }
+
   Future<void> signOut() async {
     try {
       await SupabaseService.instance.signOut();
@@ -743,6 +760,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 
       // Invalidate all Riverpod feature notifiers to eliminate cached memory leaks
       if (_ref != null) {
+        try {
+          _ref.read(sessionKeyHolderProvider).zeroize();
+        } catch (_) {}
         _ref.invalidate(walletsNotifierProvider);
         _ref.invalidate(financeNotifierProvider);
         _ref.invalidate(tasksNotifierProvider);
@@ -754,6 +774,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         _ref.invalidate(financeCategoryFilterProvider);
         _ref.invalidate(taskCategoryFilterProvider);
         _ref.invalidate(taskPriorityFilterProvider);
+        _ref.invalidate(notesAuthNotifierProvider);
+        _ref.invalidate(decryptedNotesProvider);
+        _ref.invalidate(decryptedVaultFilesProvider);
+        _ref.invalidate(waterNotifierProvider);
+        _ref.invalidate(moodNotifierProvider);
+        _ref.invalidate(focusTimerProvider);
       }
 
       state = const AsyncValue.data(null);
@@ -771,6 +797,6 @@ final authNotifierProvider =
 
 final currentUserIdProvider = Provider<String>((ref) {
   final user = ref.watch(authNotifierProvider).value;
-  return user?.id ?? 'guest_default';
+  return user?.id ?? AuthNotifier.guestLocalUserId;
 });
 

@@ -144,6 +144,26 @@ class SupabaseService {
     }
   }
 
+  Future<void> resetPasswordForEmail(String email) async {
+    if (client == null) throw Exception('Supabase client is not initialized.');
+    try {
+      await client!.auth.resetPasswordForEmail(email.trim());
+    } catch (e) {
+      debugPrint('SupabaseService.resetPasswordForEmail error: $e');
+      rethrow;
+    }
+  }
+
+  Future<void> signInWithMagicLink(String email) async {
+    if (client == null) throw Exception('Supabase client is not initialized.');
+    try {
+      await client!.auth.signInWithOtp(email: email.trim(), shouldCreateUser: false);
+    } catch (e) {
+      debugPrint('SupabaseService.signInWithMagicLink error: $e');
+      rethrow;
+    }
+  }
+
   /// Web Client ID for Google Sign-In (OAuth server client ID for backend token exchange).
   static const String googleServerClientId =
       '59392267191-audaq0flvedrmtumdbt4j089n8rmu320.apps.googleusercontent.com';

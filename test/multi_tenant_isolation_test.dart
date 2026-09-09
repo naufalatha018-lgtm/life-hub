@@ -143,24 +143,115 @@ void main() {
       expect(walletsBUpdated.first['id'], equals('wallet_beta_01'));
       expect(walletsBUpdated.first['balance_cents'], equals(150000));
     });
+
+    test('Secure notes, vault files, and wellness logs are strictly isolated per user', () async {
+      const userA = 'usr_naufal_vault';
+      const userB = 'usr_kevin_vault';
+      final now = DateTime.now();
+
+      // Insert notes for User A
+      await db.insert('secure_notes', {
+        'id': 'sn_alpha_01',
+        'user_id': userA,
+        'encrypted_title': 'payload_title_a',
+        'encrypted_content': 'payload_content_a',
+        'encrypted_tags': 'payload_tags_a',
+        'is_pinned': 0,
+        'created_at': now.millisecondsSinceEpoch,
+        'updated_at': now.millisecondsSinceEpoch,
+      });
+
+      // Insert vault files for User A
+      await db.insert('vault_files', {
+        'id': 'vf_alpha_01',
+        'user_id': userA,
+        'encrypted_file_name': 'enc_file_a',
+        'encrypted_mime_type': 'enc_mime_a',
+        'relative_path': 'vf_alpha_01.enc',
+        'file_size_bytes': 1024,
+        'iv_base64': 'dGVzdGl2',
+        'created_at': now.millisecondsSinceEpoch,
+        'updated_at': now.millisecondsSinceEpoch,
+      });
+
+      // Insert wellness water and mood logs for User A
+      await db.insert('water_logs', {
+        'id': 'wl_alpha_01',
+        'user_id': userA,
+        'amount_ml': 500,
+        'daily_goal_ml': 2000,
+        'logged_at': now.millisecondsSinceEpoch,
+        'created_at': now.millisecondsSinceEpoch,
+      });
+
+      await db.insert('mood_logs', {
+        'id': 'ml_alpha_01',
+        'user_id': userA,
+        'mood_level': 4,
+        'note': 'Great progress',
+        'logged_at': now.millisecondsSinceEpoch,
+        'created_at': now.millisecondsSinceEpoch,
+      });
+
+      // Verify User B cannot see any of User A's records
+      final notesB = await db.query('secure_notes', where: 'user_id = ?', whereArgs: [userB]);
+      expect(notesB, isEmpty, reason: 'Kevin must not see Naufal notes');
+
+      final filesB = await db.query('vault_files', where: 'user_id = ?', whereArgs: [userB]);
+      expect(filesB, isEmpty, reason: 'Kevin must not see Naufal files');
+
+      final waterB = await db.query('water_logs', where: 'user_id = ?', whereArgs: [userB]);
+      expect(waterB, isEmpty, reason: 'Kevin must not see Naufal water logs');
+
+      final moodB = await db.query('mood_logs', where: 'user_id = ?', whereArgs: [userB]);
+      expect(moodB, isEmpty, reason: 'Kevin must not see Naufal mood logs');
+
+      // Verify User A still queries their own data
+      final notesA = await db.query('secure_notes', where: 'user_id = ?', whereArgs: [userA]);
+      expect(notesA.length, equals(1));
+      expect(notesA.first['id'], equals('sn_alpha_01'));
+    });
+
+    test('Vault PIN storage keys are uniquely scoped per user and guest', () {
+      String getPinKey(String userId) => 'vault_master_pin_$userId';
+      String getPinSaltKey(String userId) => 'vault_master_pin_${userId}_salt_v1';
+      String getPinVerifierKey(String userId) => 'vault_master_pin_${userId}_verifier_v1';
+
+      const userA = 'usr_naufal';
+      const userB = 'usr_kevin';
+      const guestUser = 'guest_local_user';
+
+      expect(getPinKey(userA), equals('vault_master_pin_usr_naufal'));
+      expect(getPinKey(userB), equals('vault_master_pin_usr_kevin'));
+      expect(getPinKey(guestUser), equals('vault_master_pin_guest_local_user'));
+
+      expect(getPinKey(userA), isNot(equals(getPinKey(userB))));
+      expect(getPinKey(userB), isNot(equals(getPinKey(guestUser))));
+      expect(getPinSaltKey(userA), isNot(equals(getPinSaltKey(userB))));
+      expect(getPinVerifierKey(userA), isNot(equals(getPinVerifierKey(userB))));
+    });
   });
 
   group('Auth Error Message Parsing Suite', () {
-    String parseAuthError(dynamic error) {
+    String parseAuthError(dynamic error, {bool isSignUp = false}) {
       if (error is AuthException) {
         final msg = error.message.toLowerCase();
-        if (msg.contains('invalid login credentials') ||
-            msg.contains('invalid credentials') ||
-            msg.contains('user not found') ||
-            msg.contains('wrong password') ||
-            msg.contains('invalid password')) {
-          return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+        if (!isSignUp) {
+          if (msg.contains('invalid login credentials') ||
+              msg.contains('invalid credentials') ||
+              msg.contains('user not found') ||
+              msg.contains('wrong password') ||
+              msg.contains('invalid password')) {
+            return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali.';
+          }
         }
-        if (msg.contains('already registered') ||
-            msg.contains('user already exists') ||
-            msg.contains('email address already taken') ||
-            msg.contains('already been taken')) {
-          return 'Email sudah terdaftar. Silakan masuk.';
+        if (isSignUp) {
+          if (msg.contains('already registered') ||
+              msg.contains('user already exists') ||
+              msg.contains('email address already taken') ||
+              msg.contains('already been taken')) {
+            return 'Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.';
+          }
         }
         if (msg.contains('invalid email') || msg.contains('format')) {
           return 'Format email tidak valid.';
@@ -172,14 +263,18 @@ void main() {
       }
 
       final str = error.toString().toLowerCase();
-      if (str.contains('no account found') ||
-          str.contains('incorrect password') ||
-          str.contains('invalid credentials') ||
-          str.contains('credentials')) {
-        return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+      if (!isSignUp) {
+        if (str.contains('no account found') ||
+            str.contains('incorrect password') ||
+            str.contains('invalid credentials') ||
+            str.contains('credentials')) {
+          return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali.';
+        }
       }
-      if (str.contains('already exists') || str.contains('already registered')) {
-        return 'Email sudah terdaftar. Silakan masuk.';
+      if (isSignUp) {
+        if (str.contains('already exists') || str.contains('already registered')) {
+          return 'Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.';
+        }
       }
       if (str.contains('valid email')) {
         return 'Format email tidak valid.';
@@ -196,18 +291,18 @@ void main() {
     }
 
     test('Maps Supabase and local auth errors to clear user-friendly Indonesian messages', () {
-      // 1. Invalid credentials
+      // 1. Invalid credentials in Login tab
       final err1 = const AuthException('Invalid login credentials', statusCode: '400');
       expect(
-        parseAuthError(err1),
-        equals('Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.'),
+        parseAuthError(err1, isSignUp: false),
+        equals('Email belum terdaftar atau kata sandi salah. Silakan periksa kembali.'),
       );
 
-      // 2. Already registered
+      // 2. Already registered in Register tab
       final err2 = const AuthException('User already registered', statusCode: '400');
       expect(
-        parseAuthError(err2),
-        equals('Email sudah terdaftar. Silakan masuk.'),
+        parseAuthError(err2, isSignUp: true),
+        equals('Email ini sudah terdaftar. Silakan masuk menggunakan akun Anda.'),
       );
 
       // 3. Invalid email format

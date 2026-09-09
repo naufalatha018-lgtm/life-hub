@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/crypto/session_key_holder.dart';
 import '../../../core/database/notes_dao.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/encrypted_note_record.dart';
 import '../models/secure_note.dart';
 import 'notes_auth_provider.dart';
@@ -18,15 +19,17 @@ final decryptedNotesProvider =
     StateNotifierProvider<DecryptedNotesNotifier, AsyncValue<List<SecureNote>>>((ref) {
   final dao = ref.watch(notesDaoProvider);
   final keyHolder = ref.watch(sessionKeyHolderProvider);
-  return DecryptedNotesNotifier(dao, keyHolder);
+  final userId = ref.watch(currentUserIdProvider);
+  return DecryptedNotesNotifier(dao, keyHolder, userId);
 });
 
 class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>> {
-  DecryptedNotesNotifier(this._dao, this._keyHolder)
+  DecryptedNotesNotifier(this._dao, this._keyHolder, [this._userId])
       : super(const AsyncValue.data([]));
 
   final NotesDao _dao;
   final SessionKeyHolder _keyHolder;
+  final String? _userId;
 
   Future<void> loadDecryptedNotes() async {
     if (!_keyHolder.hasKey) {
@@ -37,7 +40,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
     state = const AsyncValue.loading();
     try {
       final key = _keyHolder.key!;
-      final records = await _dao.getAllEncryptedNotes();
+      final records = await _dao.getAllEncryptedNotes(_userId);
       final List<SecureNote> decryptedList = [];
 
       for (final row in records) {
@@ -105,7 +108,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
       updatedAt: now,
     );
 
-    await _dao.insertNote(record.toMap());
+    await _dao.insertNote(record.toMap(), _userId);
 
     final newNote = SecureNote(
       id: record.id,
@@ -146,7 +149,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
       updatedAt: now,
     );
 
-    await _dao.updateNote(record.toMap());
+    await _dao.updateNote(record.toMap(), _userId);
 
     final updatedNote = note.copyWith(updatedAt: now);
 
@@ -170,6 +173,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
       id: id,
       isPinned: newPinned,
       updatedAt: now.millisecondsSinceEpoch,
+      userId: _userId,
     );
 
     state.whenData((list) {
@@ -183,7 +187,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
   }
 
   Future<void> deleteNote(String id) async {
-    await _dao.deleteNote(id);
+    await _dao.deleteNote(id, _userId);
     state.whenData((list) {
       state = AsyncValue.data(list.where((n) => n.id != id).toList());
     });

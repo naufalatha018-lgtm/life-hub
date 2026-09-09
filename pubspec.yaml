@@ -74,6 +74,9 @@ dependencies:
   # Unique IDs
   uuid: ^4.5.1
 
+  # Audio Feedback & Notifications
+  audioplayers: ^6.1.0
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

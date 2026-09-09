@@ -3,6 +3,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/services/audio_notification_service.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/focus_session.dart';
 
 enum FocusTimerState { idle, running, paused, breakTime }
@@ -79,8 +81,9 @@ class FocusTimerData {
 }
 
 class FocusTimerNotifier extends StateNotifier<FocusTimerData> {
-  FocusTimerNotifier() : super(const FocusTimerData());
+  FocusTimerNotifier([this._userId]) : super(const FocusTimerData());
 
+  final String? _userId;
   Timer? _timer;
 
   void start({String? taskId}) {
@@ -136,9 +139,12 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerData> {
 
   void _onPhaseComplete() {
     _timer?.cancel();
-    HapticFeedback.heavyImpact();
+    HapticFeedback.vibrate();
 
     if (state.phase == FocusPhase.focus) {
+      // Play bell chime on focus timer completion
+      AudioNotificationService.instance.playFocusCompleteChime();
+
       final newCount = state.sessionCount + 1;
       _saveSession(state.currentSessionId, FocusTimerData.focusDuration, true);
 
@@ -158,6 +164,9 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerData> {
       );
       _startTick();
     } else {
+      // Play alarm chime on break timer completion
+      AudioNotificationService.instance.playBreakCompleteAlarm();
+
       // Break completed — return to idle focus state
       state = FocusTimerData(
         sessionCount: state.sessionCount,
@@ -173,6 +182,7 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerData> {
       final now = DateTime.now();
       await db.insert('focus_sessions', {
         'id': sessionId,
+        'user_id': ?_userId,
         'task_id': state.linkedTaskId,
         'duration_seconds': durationSeconds,
         'break_type': state.phase.name,
@@ -192,5 +202,6 @@ class FocusTimerNotifier extends StateNotifier<FocusTimerData> {
 }
 
 final focusTimerProvider = StateNotifierProvider<FocusTimerNotifier, FocusTimerData>((ref) {
-  return FocusTimerNotifier();
+  final userId = ref.watch(currentUserIdProvider);
+  return FocusTimerNotifier(userId);
 });

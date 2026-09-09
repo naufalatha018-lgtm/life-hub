@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/crypto/session_key_holder.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../vault/providers/vault_files_provider.dart';
 import 'notes_crud_provider.dart';
 
@@ -27,11 +28,12 @@ final notesAuthNotifierProvider =
     StateNotifierProvider<NotesAuthNotifier, NotesAuthStatus>((ref) {
   final storage = ref.watch(secureStorageProvider);
   final keyHolder = ref.watch(sessionKeyHolderProvider);
-  return NotesAuthNotifier(storage, keyHolder, ref);
+  final userId = ref.watch(currentUserIdProvider);
+  return NotesAuthNotifier(storage, keyHolder, ref, userId: userId);
 });
 
 class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
-  NotesAuthNotifier(this._storage, this._keyHolder, this._ref)
+  NotesAuthNotifier(this._storage, this._keyHolder, this._ref, {required this.userId})
       : super(NotesAuthStatus.loading) {
     checkPinConfiguration();
   }
@@ -39,10 +41,12 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
   final FlutterSecureStorage _storage;
   final SessionKeyHolder _keyHolder;
   final Ref _ref;
+  final String userId;
 
-  static const String _keySalt = 'life_hub_notes_salt_v1';
-  static const String _keyVerifier = 'life_hub_notes_verifier_v1';
-  static const String _keyRecovery = 'life_hub_notes_recovery_code_v1';
+  String get _keySalt => 'vault_master_pin_${userId}_salt_v1';
+  String get _keyVerifier => 'vault_master_pin_${userId}_verifier_v1';
+  String get _keyRecovery => 'vault_master_pin_${userId}_recovery_v1';
+  String get _keyPin => 'vault_master_pin_$userId';
 
   Future<void> checkPinConfiguration() async {
     try {
@@ -71,6 +75,7 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
     await _storage.write(key: _keySalt, value: base64Encode(salt));
     await _storage.write(key: _keyVerifier, value: verifier);
     await _storage.write(key: _keyRecovery, value: recoveryCode);
+    await _storage.write(key: _keyPin, value: verifier);
 
     _keyHolder.setKey(derivedKey);
     state = NotesAuthStatus.unlocked;
