@@ -4,8 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/currency_provider.dart';
 import '../models/user_model.dart';
 
@@ -329,8 +331,23 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       }
 
       final googleSignIn = GoogleSignIn.instance;
-      await googleSignIn.initialize();
+      await googleSignIn.initialize(
+        serverClientId: SupabaseService.googleServerClientId,
+      );
       final account = await googleSignIn.authenticate();
+
+      // Synchronize with Supabase Cloud Authentication if online
+      final idToken = account.authentication.idToken;
+      if (idToken != null && SupabaseService.instance.client != null) {
+        try {
+          await SupabaseService.instance.client!.auth.signInWithIdToken(
+            provider: OAuthProvider.google,
+            idToken: idToken,
+          );
+        } catch (e) {
+          debugPrint('Supabase Google Sign-In link error (non-fatal): $e');
+        }
+      }
 
       final db = await _db.database;
       final email = account.email.trim().toLowerCase();

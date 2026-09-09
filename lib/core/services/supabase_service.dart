@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 /// Supabase URL and anon key (from environment / hardcoded for this project).
@@ -78,6 +79,31 @@ class SupabaseService {
       debugPrint('SupabaseService.signUpWithEmail error: $e');
       return null;
     }
+  }
+
+  /// Web Client ID for Google Sign-In (OAuth server client ID for backend token exchange).
+  static const String googleServerClientId = 'PASTE_WEB_CLIENT_ID_KAMU_DI_SINI';
+
+  /// Performs Google Sign-In with configured [serverClientId] and links with Supabase.
+  Future<AuthResponse?> signInWithGoogle({String? serverClientId}) async {
+    try {
+      final googleSignIn = GoogleSignIn.instance;
+      await googleSignIn.initialize(
+        serverClientId: serverClientId ?? googleServerClientId,
+      );
+      final account = await googleSignIn.authenticate();
+      final idToken = account.authentication.idToken;
+
+      if (client != null && idToken != null) {
+        return await client!.auth.signInWithIdToken(
+          provider: OAuthProvider.google,
+          idToken: idToken,
+        );
+      }
+    } catch (e) {
+      debugPrint('SupabaseService.signInWithGoogle error: $e');
+    }
+    return null;
   }
 
   Future<void> signOut() async {
