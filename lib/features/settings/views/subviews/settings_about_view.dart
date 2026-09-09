@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -54,7 +54,7 @@ class SettingsAboutView extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             const Text(
-              'Life Hub',
+              'Life OS',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 22,

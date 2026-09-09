@@ -29,6 +29,7 @@ abstract class AppStrings {
   String get financeTitle;
   String get financeSubtitle;
   String get logTransaction;
+  String get exportCsv;
   String get editTransaction;
   String get income;
   String get expense;
@@ -469,6 +470,8 @@ class IdAppStrings implements AppStrings {
   String get financeSubtitle => 'Kelola arus kas, pemasukan, dan pengeluaran harian';
   @override
   String get logTransaction => 'Catat Transaksi';
+  @override
+  String get exportCsv => 'Ekspor CSV Bulan Ini';
   @override
   String get editTransaction => 'Ubah Transaksi';
   @override
@@ -959,9 +962,9 @@ class IdAppStrings implements AppStrings {
   @override
   String get settingsAboutTitle => 'Tentang Aplikasi';
   @override
-  String get settingsAboutSubtitle => 'Informasi versi rilis dan platform Life Hub';
+  String get settingsAboutSubtitle => 'Informasi versi rilis dan platform Life OS';
   @override
-  String get aboutMultiPlatform => 'Life Hub Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
+  String get aboutMultiPlatform => 'Life OS Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
   @override
   String get settingsNotificationsTitle => 'Notifikasi & Pengingat';
   @override
@@ -987,7 +990,7 @@ class IdAppStrings implements AppStrings {
   @override
   String get navDashboard => 'Beranda';
   @override
-  String get dashboardTitle => 'Life Hub';
+  String get dashboardTitle => 'Life OS';
   @override
   String get dashboardFinanceSummary => 'Ringkasan Keuangan Bulan Ini';
   @override
@@ -1226,6 +1229,8 @@ class EnAppStrings implements AppStrings {
   String get financeSubtitle => 'Manage cash flow, income, and daily expenses';
   @override
   String get logTransaction => 'Log Transaction';
+  @override
+  String get exportCsv => 'Export This Month CSV';
   @override
   String get editTransaction => 'Edit Transaction';
   @override
@@ -1716,9 +1721,9 @@ class EnAppStrings implements AppStrings {
   @override
   String get settingsAboutTitle => 'About Application';
   @override
-  String get settingsAboutSubtitle => 'Life Hub version and platform release info';
+  String get settingsAboutSubtitle => 'Life OS version and platform release info';
   @override
-  String get aboutMultiPlatform => 'Life Hub Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
+  String get aboutMultiPlatform => 'Life OS Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
   @override
   String get settingsNotificationsTitle => 'Notifications & Reminders';
   @override
@@ -1744,7 +1749,7 @@ class EnAppStrings implements AppStrings {
   @override
   String get navDashboard => 'Home';
   @override
-  String get dashboardTitle => 'Life Hub';
+  String get dashboardTitle => 'Life OS';
   @override
   String get dashboardFinanceSummary => 'This Month\'s Finance';
   @override
@@ -1930,3 +1935,4 @@ class EnAppStrings implements AppStrings {
   @override
   String get appTaglineOs => 'Your Personal Operating System';
 }
+

@@ -1,10 +1,10 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
 
-/// Local notification service for Life Hub.
+/// Local notification service for Life OS.
 /// Permissions are requested on-demand (when user enables a reminder).
 /// No external push server required — fully offline.
 class NotificationService {
@@ -48,7 +48,7 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    const linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open Life Hub');
+    const linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open Life OS');
 
     const settings = InitializationSettings(
       android: androidSettings,

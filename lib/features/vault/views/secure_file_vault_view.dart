@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/glass_container.dart';
+import '../../../core/widgets/secure_screen.dart';
 import '../models/vault_file_item.dart';
 import '../providers/vault_files_provider.dart';
 import 'widgets/secure_file_preview_dialog.dart';
@@ -42,106 +43,108 @@ class SecureFileVaultView extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filesAsync = ref.watch(decryptedVaultFilesProvider);
 
-    return filesAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(color: AppColors.primaryLight),
-      ),
-      error: (e, _) => Center(
-        child: Text('Error loading vault: $e', style: const TextStyle(color: AppColors.expense)),
-      ),
-      data: (files) {
-        if (files.isEmpty) {
-          return Center(
-            child: Padding(
-              padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryGlow.withOpacity(0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+    return SecureScreen(
+      child: filesAsync.when(
+        loading: () => const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryLight),
+        ),
+        error: (e, _) => Center(
+          child: Text('Error loading vault: $e', style: const TextStyle(color: AppColors.expense)),
+        ),
+        data: (files) {
+          if (files.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 72,
+                      height: 72,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryGlow.withOpacity(0.3),
+                        shape: BoxShape.circle,
+                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                      ),
+                      child: const Icon(
+                        Icons.folder_zip_rounded,
+                        size: 36,
+                        color: AppColors.primaryLight,
+                      ),
                     ),
-                    child: const Icon(
-                      Icons.folder_zip_rounded,
-                      size: 36,
-                      color: AppColors.primaryLight,
+                    const SizedBox(height: 18),
+                    const Text(
+                      'Your Secure File Vault is Empty',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  const Text(
-                    'Your Secure File Vault is Empty',
-                    style: TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Import confidential documents, deeds, passports, receipts, and images.\nAll files are encrypted with AES-256-GCM before saving to disk.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.4),
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Import confidential documents, deeds, passports, receipts, and images.\nAll files are encrypted with AES-256-GCM before saving to disk.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: AppColors.textMuted, fontSize: 13, height: 1.4),
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: () =>
-                        ref.read(decryptedVaultFilesProvider.notifier).pickAndEncryptFiles(),
-                    icon: const Icon(Icons.add_moderator_rounded, size: 20),
-                    label: const Text('Encrypt & Import Files'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () =>
+                          ref.read(decryptedVaultFilesProvider.notifier).pickAndEncryptFiles(),
+                      icon: const Icon(Icons.add_moderator_rounded, size: 20),
+                      label: const Text('Encrypt & Import Files'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+            );
+          }
+
+          return Scaffold(
+            backgroundColor: Colors.transparent,
+            floatingActionButton: FloatingActionButton.extended(
+              onPressed: () =>
+                  ref.read(decryptedVaultFilesProvider.notifier).pickAndEncryptFiles(),
+              icon: const Icon(Icons.add_moderator_rounded),
+              label: const Text('Encrypt File', style: TextStyle(fontWeight: FontWeight.w600)),
             ),
-          );
-        }
+            body: LayoutBuilder(
+              builder: (context, constraints) {
+                final isWide = constraints.maxWidth >= 720;
 
-        return Scaffold(
-          backgroundColor: Colors.transparent,
-          floatingActionButton: FloatingActionButton.extended(
-            onPressed: () =>
-                ref.read(decryptedVaultFilesProvider.notifier).pickAndEncryptFiles(),
-            icon: const Icon(Icons.add_moderator_rounded),
-            label: const Text('Encrypt File', style: TextStyle(fontWeight: FontWeight.w600)),
-          ),
-          body: LayoutBuilder(
-            builder: (context, constraints) {
-              final isWide = constraints.maxWidth >= 720;
+                if (isWide) {
+                  return GridView.builder(
+                    padding: const EdgeInsets.all(16),
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 340,
+                      mainAxisExtent: 150,
+                      crossAxisSpacing: 14,
+                      mainAxisSpacing: 14,
+                    ),
+                    itemCount: files.length,
+                    itemBuilder: (context, index) {
+                      return _buildFileCard(context, ref, files[index]);
+                    },
+                  );
+                }
 
-              if (isWide) {
-                return GridView.builder(
+                return ListView.separated(
                   padding: const EdgeInsets.all(16),
-                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                    maxCrossAxisExtent: 340,
-                    mainAxisExtent: 150,
-                    crossAxisSpacing: 14,
-                    mainAxisSpacing: 14,
-                  ),
                   itemCount: files.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (context, index) {
                     return _buildFileCard(context, ref, files[index]);
                   },
                 );
-              }
-
-              return ListView.separated(
-                padding: const EdgeInsets.all(16),
-                itemCount: files.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  return _buildFileCard(context, ref, files[index]);
-                },
-              );
-            },
-          ),
-        );
-      },
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 

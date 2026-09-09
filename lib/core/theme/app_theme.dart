@@ -1,8 +1,8 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Supported visual themes for Life Hub Life OS.
+/// Supported visual themes for Life OS Life OS.
 enum AppThemeVariant { lightExecutive, darkMidnight, pureMonochromatic }
 
 class AppTheme {

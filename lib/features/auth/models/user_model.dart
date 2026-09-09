@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 
 @immutable
 class AppUser {
@@ -33,7 +33,7 @@ class AppUser {
     if (email.isNotEmpty && email.contains('@')) {
       return email.split('@').first;
     }
-    return isGuest ? 'Executive Guest' : 'Life Hub Member';
+    return isGuest ? 'Executive Guest' : 'Life OS Member';
   }
 
   AppUser copyWith({

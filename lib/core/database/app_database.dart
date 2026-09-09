@@ -1,7 +1,7 @@
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+﻿import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'db_platform/db_platform.dart';
 
-/// Platform-agnostic SQLite database engine for Life Hub Life OS.
+/// Platform-agnostic SQLite database engine for Life OS Life OS.
 /// Supports Android, iOS, Windows, macOS, Linux, and Web seamlessly.
 ///
 /// Schema version history:

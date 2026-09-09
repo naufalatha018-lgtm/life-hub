@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -102,7 +102,7 @@ class SettingsAccountView extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.effectiveName ?? 'Life Hub User',
+                          user?.effectiveName ?? 'Life OS User',
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 17,

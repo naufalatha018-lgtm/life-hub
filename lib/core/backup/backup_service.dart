@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
@@ -53,7 +53,7 @@ class BackupService {
 
     final payloadMap = {
       'version': 1,
-      'app': 'Life Hub',
+      'app': 'Life OS',
       'exported_at': DateTime.now().toIso8601String(),
       'transactions': txRows,
       'tasks': taskRows,
@@ -117,7 +117,7 @@ class BackupService {
     // Verify magic header
     for (int i = 0; i < headerBytes.length; i++) {
       if (rawBytes[i] != headerBytes[i]) {
-        throw const InvalidBackupPasswordException('Invalid Life Hub backup file header.');
+        throw const InvalidBackupPasswordException('Invalid Life OS backup file header.');
       }
     }
 

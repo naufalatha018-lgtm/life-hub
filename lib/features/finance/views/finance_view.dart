@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/localization/locale_provider.dart';
+import '../../../../core/services/finance_export_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
@@ -91,6 +92,30 @@ class FinanceView extends ConsumerWidget {
           ],
         ),
         actions: [
+          // CSV Export
+          IconButton(
+            tooltip: strings.exportCsv,
+            icon: const Icon(Icons.file_download_outlined, color: AppColors.primaryLight),
+            onPressed: () async {
+              final lang = ref.read(localeProvider).code;
+              final now = DateTime.now();
+              final result = await FinanceExportService.instance.exportCsv(
+                context: context,
+                year: now.year,
+                month: now.month,
+                language: lang,
+              );
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(result.success
+                    ? (lang == 'id' ? '${result.rowCount} transaksi diekspor' : '${result.rowCount} transactions exported')
+                    : result.isEmpty == true
+                        ? (lang == 'id' ? 'Tidak ada data untuk diekspor' : 'No data to export')
+                        : (result.error ?? 'Export failed')),
+                backgroundColor: result.success ? AppColors.income : AppColors.expense,
+              ));
+            },
+          ),
           const CurrencyToggleChip(),
           const SizedBox(width: 8),
           IconButton(
