@@ -7,17 +7,17 @@ class CurrencyNotifier extends StateNotifier<AppCurrency> {
   final FlutterSecureStorage _storage;
   static const _storageKey = 'preferred_currency';
 
-  CurrencyNotifier(this._storage) : super(AppCurrency.usd) {
+  CurrencyNotifier(this._storage) : super(AppCurrency.idr) {
     _loadPreference();
   }
 
   Future<void> _loadPreference() async {
     try {
       final saved = await _storage.read(key: _storageKey);
-      if (saved == 'idr') {
-        state = AppCurrency.idr;
-      } else {
+      if (saved == 'usd') {
         state = AppCurrency.usd;
+      } else {
+        state = AppCurrency.idr;
       }
     } catch (_) {
       // Fallback default

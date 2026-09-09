@@ -31,18 +31,18 @@ class FinanceExportService {
       List<dynamic> args = [];
 
       if (year != null && month != null) {
-        whereClause = "WHERE strftime('%Y', date) = ? AND strftime('%m', date) = ?";
+        whereClause = "WHERE strftime('%Y', datetime(t.timestamp / 1000, 'unixepoch', 'localtime')) = ? AND strftime('%m', datetime(t.timestamp / 1000, 'unixepoch', 'localtime')) = ?";
         args = [year.toString(), month.toString().padLeft(2, '0')];
       } else if (year != null) {
-        whereClause = "WHERE strftime('%Y', date) = ?";
+        whereClause = "WHERE strftime('%Y', datetime(t.timestamp / 1000, 'unixepoch', 'localtime')) = ?";
         args = [year.toString()];
       }
 
       final rows = await db.rawQuery(
-        "SELECT t.title, t.amount_cents, t.type, t.category, t.date, t.notes, w.name as wallet_name "
+        "SELECT t.title, t.amount_cents, t.type, t.category, t.timestamp, t.note, w.name as wallet_name "
         "FROM finance_transactions t LEFT JOIN wallets w ON t.wallet_id = w.id "
         "$whereClause "
-        "ORDER BY t.date DESC",
+        "ORDER BY t.timestamp DESC",
         args,
       );
 
@@ -59,14 +59,18 @@ class FinanceExportService {
       for (final row in rows) {
         final amount = CurrencyFormatter.formatCents((row['amount_cents'] as int).abs());
         final type = row['type'] as String;
+        final ts = row['timestamp'] as int?;
+        final dateStr = ts != null
+            ? DateTime.fromMillisecondsSinceEpoch(ts).toIso8601String().substring(0, 10)
+            : '';
         csvLines.add([
           _escape(row['title'] as String),
           _escape(amount),
           _escape(isId ? (type == 'income' ? 'Pemasukan' : 'Pengeluaran') : type),
           _escape(row['category'] as String? ?? ''),
-          _escape(row['date'] as String? ?? ''),
+          _escape(dateStr),
           _escape(row['wallet_name'] as String? ?? ''),
-          _escape(row['notes'] as String? ?? ''),
+          _escape(row['note'] as String? ?? ''),
         ].join(','));
       }
 

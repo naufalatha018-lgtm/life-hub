@@ -51,7 +51,7 @@ class CurrencyFormatter {
   static String formatCents(
     int amountCents, {
     bool showSign = false,
-    AppCurrency currency = AppCurrency.usd,
+    AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
       final idrValue = (amountCents * idrPerCent).round();
@@ -76,7 +76,7 @@ class CurrencyFormatter {
   /// IDR: Rp 160K, Rp 1.6M, Rp 16M
   static String formatCompactCents(
     int amountCents, {
-    AppCurrency currency = AppCurrency.usd,
+    AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
       final double idr = (amountCents * idrPerCent).toDouble();
@@ -103,7 +103,7 @@ class CurrencyFormatter {
   /// Eliminates all floating-point precision loss.
   static int parseToCents(
     String input, {
-    AppCurrency currency = AppCurrency.usd,
+    AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
       // In IDR, user types e.g. "50000" or "50.000" or "Rp 50.000"

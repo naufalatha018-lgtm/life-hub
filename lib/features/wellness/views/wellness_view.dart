@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/glass_container.dart';
 import '../models/wellness_log.dart';
 import '../providers/wellness_provider.dart';
+import 'widgets/live_health_metrics_card.dart';
 
 class WellnessView extends ConsumerWidget {
   const WellnessView({super.key});
@@ -39,6 +40,10 @@ class WellnessView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Live Health Connect Telemetry (Redmi Watch 5 Lite)
+            const LiveHealthMetricsCard(),
+            const SizedBox(height: 16),
+
             // Water Card
             GlassContainer(
               blur: 10,

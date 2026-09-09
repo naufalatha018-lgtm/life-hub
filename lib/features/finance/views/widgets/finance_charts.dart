@@ -83,7 +83,7 @@ class _FinanceChartsSectionState extends ConsumerState<FinanceChartsSection> {
               ),
               const SizedBox(width: 14),
               Expanded(
-                child: _buildDailyBarChartCard(dailyExpenses, strings),
+                child: _buildDailyBarChartCard(dailyExpenses, activeCurrency, strings),
               ),
             ],
           );
@@ -93,7 +93,7 @@ class _FinanceChartsSectionState extends ConsumerState<FinanceChartsSection> {
           children: [
             _buildCategoryDonutCard(categoryBreakdown, totalExpenseCents, activeCurrency, strings),
             const SizedBox(height: 14),
-            _buildDailyBarChartCard(dailyExpenses, strings),
+            _buildDailyBarChartCard(dailyExpenses, activeCurrency, strings),
           ],
         );
       },
@@ -230,7 +230,11 @@ class _FinanceChartsSectionState extends ConsumerState<FinanceChartsSection> {
     );
   }
 
-  Widget _buildDailyBarChartCard(Map<String, int> dailyExpenses, AppStrings strings) {
+  Widget _buildDailyBarChartCard(
+    Map<String, int> dailyExpenses,
+    AppCurrency currency,
+    AppStrings strings,
+  ) {
     final entries = dailyExpenses.entries.toList();
 
     return GlassContainer(
@@ -301,16 +305,17 @@ class _FinanceChartsSectionState extends ConsumerState<FinanceChartsSection> {
                         leftTitles: AxisTitles(
                           sideTitles: SideTitles(
                             showTitles: true,
-                            reservedSize: 42,
+                            reservedSize: currency == AppCurrency.idr ? 48 : 42,
                             getTitlesWidget: (value, meta) {
                               if (value == 0) return const SizedBox.shrink();
+                              final valCents = (value * 100).toInt();
                               return Padding(
                                 padding: const EdgeInsets.only(right: 6),
                                 child: Text(
-                                  '\$${value.toInt()}',
+                                  CurrencyFormatter.formatCompactCents(valCents, currency: currency),
                                   style: const TextStyle(
                                     color: AppColors.textMuted,
-                                    fontSize: 10,
+                                    fontSize: 9,
                                   ),
                                   textAlign: TextAlign.right,
                                 ),

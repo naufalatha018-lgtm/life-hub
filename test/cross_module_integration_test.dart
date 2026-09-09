@@ -20,7 +20,7 @@ void main() {
       );
 
       expect(task.hasEstimatedCost, isTrue);
-      expect(task.formattedCost, equals('\$45.75'));
+      expect(task.formattedCost, equals('Rp 732.000'));
       expect(task.isExpenseLogged, isFalse);
 
       // Simulate the cross-module automated action
@@ -40,7 +40,7 @@ void main() {
       expect(expenseTx.amountCents, equals(4575));
       expect(expenseTx.isExpense, isTrue);
       expect(expenseTx.linkedTaskId, equals('task_grocery_01'));
-      expect(expenseTx.formattedAmount, equals('\$45.75'));
+      expect(expenseTx.formattedAmount, equals('Rp 732.000'));
 
       // Mark task as logged
       final updatedTask = task.copyWith(isExpenseLogged: true);

@@ -68,6 +68,9 @@ dependencies:
   # Export & Sharing
   share_plus: ^10.1.4
 
+  # Health & Fitness (Health Connect / Redmi Watch 5 Lite / Mi Fitness)
+  health: ^13.3.1
+
   # Unique IDs
   uuid: ^4.5.1
 

@@ -13,6 +13,7 @@ import '../../focus/views/focus_view.dart';
 import '../../habits/providers/habits_provider.dart';
 import '../../wellness/providers/wellness_provider.dart';
 import '../../wellness/views/wellness_view.dart';
+import '../../wellness/views/widgets/live_health_metrics_card.dart';
 import '../../habits/views/habits_view.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -273,6 +274,8 @@ class DashboardView extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 8),
+                const LiveHealthMetricsCard(),
+                const SizedBox(height: 12),
                 _WaterSummaryCard(waterState: waterState),
                 const SizedBox(height: 20),
 

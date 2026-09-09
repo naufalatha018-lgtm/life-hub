@@ -78,7 +78,7 @@ class GlobalSearchService {
     try {
       // Finance transactions
       final txns = await db.rawQuery(
-        "SELECT id, title, amount_cents, type, date FROM finance_transactions WHERE LOWER(title) LIKE ? OR LOWER(category) LIKE ? ORDER BY date DESC LIMIT 10",
+        "SELECT id, title, amount_cents, type, timestamp FROM finance_transactions WHERE LOWER(title) LIKE ? OR LOWER(category) LIKE ? ORDER BY timestamp DESC LIMIT 10",
         [q, q],
       );
       for (final t in txns) {
@@ -88,7 +88,9 @@ class GlobalSearchService {
           id: t['id'] as String,
           title: t['title'] as String,
           subtitle: amountStr,
-          date: t['date'] != null ? DateTime.tryParse(t['date'] as String) : null,
+          date: t['timestamp'] != null
+              ? DateTime.fromMillisecondsSinceEpoch((t['timestamp'] as num).toInt())
+              : null,
         ));
       }
     } catch (_) {}
