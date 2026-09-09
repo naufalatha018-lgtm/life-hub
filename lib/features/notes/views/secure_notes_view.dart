@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/locale_provider.dart';
+import '../../../../core/services/biometric_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/glass_container.dart';
 import '../../vault/providers/vault_files_provider.dart';
@@ -29,6 +30,57 @@ class _SecureNotesViewState extends ConsumerState<SecureNotesView> {
   String? _setupInitialPin;
   bool _isConfirmingSetup = false;
   int _selectedVaultTab = 0; // 0: Notes, 1: Documents
+  bool _hasAutoPromptedBiometrics = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _promptBiometricsIfAvailable();
+    });
+  }
+
+  Future<void> _promptBiometricsIfAvailable() async {
+    if (_hasAutoPromptedBiometrics || !mounted) return;
+    final status = ref.read(notesAuthNotifierProvider);
+    if (status != NotesAuthStatus.locked) return;
+
+    final canUse = await ref.read(notesAuthNotifierProvider.notifier).canUseBiometrics();
+    if (canUse && mounted) {
+      _hasAutoPromptedBiometrics = true;
+      _attemptBiometricUnlock();
+    }
+  }
+
+  Future<void> _attemptBiometricUnlock() async {
+    final canUse = await ref.read(notesAuthNotifierProvider.notifier).canUseBiometrics();
+    if (!canUse) {
+      final isHardwareAvailable = await BiometricService.instance.isBiometricAvailable();
+      if (!isHardwareAvailable && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Perangkat ini tidak mendukung sensor biometrik.'),
+            backgroundColor: AppColors.cardBorder,
+          ),
+        );
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Masukkan PIN 6-digit sekali untuk mengaktifkan biometrik.'),
+            backgroundColor: AppColors.primary,
+          ),
+        );
+      }
+      return;
+    }
+
+    setState(() => _pinErrorMessage = null);
+    final success = await ref.read(notesAuthNotifierProvider.notifier).unlockWithBiometrics();
+    if (!mounted) return;
+    if (!success) {
+      // Biometrics failed or cancelled: user seamlessly continues with PIN
+    }
+  }
 
   void _onUnlockPinComplete(String pin) async {
     setState(() => _pinErrorMessage = null);
@@ -267,6 +319,8 @@ class _SecureNotesViewState extends ConsumerState<SecureNotesView> {
         );
 
       case NotesAuthStatus.locked:
+        final isBiometricReady = ref.watch(vaultBiometricReadyProvider).value ?? false;
+
         return Scaffold(
           backgroundColor: AppColors.background,
           resizeToAvoidBottomInset: true,
@@ -282,6 +336,8 @@ class _SecureNotesViewState extends ConsumerState<SecureNotesView> {
                     subtitle: strings.enterPinSubtitle,
                     errorMessage: _pinErrorMessage,
                     onPinComplete: _onUnlockPinComplete,
+                    showBiometricButton: isBiometricReady,
+                    onBiometricPressed: _attemptBiometricUnlock,
                   ),
                   TextButton.icon(
                     onPressed: _showRecoveryPrompt,
@@ -344,6 +400,7 @@ class _SecureNotesViewState extends ConsumerState<SecureNotesView> {
               style: const TextStyle(color: AppColors.expense, fontWeight: FontWeight.w600),
             ),
             onPressed: () {
+              setState(() => _hasAutoPromptedBiometrics = false);
               ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
             },
           ),

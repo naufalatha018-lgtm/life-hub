@@ -171,7 +171,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       id,
-      '💰 Catat Keuangan Harian',
+      'Catat Keuangan Harian',
       'Sudah mencatat pengeluaran & pemasukan hari ini? Perbarui catatan finansialmu sekarang.',
       _nextInstanceOfTime(20, 0),
       NotificationDetails(
@@ -196,7 +196,7 @@ class NotificationService {
     // Show immediate confirmation heads-up banner
     await showHeadsUpNotification(
       id: 8101,
-      title: '🔔 Pengingat Finansial Aktif',
+      title: 'Pengingat Finansial Aktif',
       body: 'Actividata akan mengingatkan Anda setiap pukul 20:00 untuk mencatat keuangan.',
       channel: dailyFinanceChannel,
     );
@@ -213,7 +213,7 @@ class NotificationService {
 
     await _plugin.zonedSchedule(
       id,
-      '💳 Cek Tagihan Berkala',
+      'Cek Tagihan Berkala',
       'Periksa tagihan dan langganan bulanan agar tidak terlambat dibayar.',
       _nextInstanceOfTime(9, 0),
       NotificationDetails(
@@ -237,7 +237,7 @@ class NotificationService {
 
     await showHeadsUpNotification(
       id: 8102,
-      title: '💳 Pengingat Tagihan Aktif',
+      title: 'Pengingat Tagihan Aktif',
       body: 'Actividata akan mengingatkan Anda saat ada tagihan atau langganan mendekati tempo.',
       channel: billChannel,
     );

@@ -212,10 +212,11 @@ void main() {
       expect(notesA.first['id'], equals('sn_alpha_01'));
     });
 
-    test('Vault PIN storage keys are uniquely scoped per user and guest', () {
+    test('Vault PIN and Biometric storage keys are uniquely scoped per user and guest', () {
       String getPinKey(String userId) => 'vault_master_pin_$userId';
       String getPinSaltKey(String userId) => 'vault_master_pin_${userId}_salt_v1';
       String getPinVerifierKey(String userId) => 'vault_master_pin_${userId}_verifier_v1';
+      String getBiometricKey(String userId) => 'vault_master_pin_${userId}_biometric_key_v1';
 
       const userA = 'usr_naufal';
       const userB = 'usr_kevin';
@@ -229,6 +230,13 @@ void main() {
       expect(getPinKey(userB), isNot(equals(getPinKey(guestUser))));
       expect(getPinSaltKey(userA), isNot(equals(getPinSaltKey(userB))));
       expect(getPinVerifierKey(userA), isNot(equals(getPinVerifierKey(userB))));
+
+      // Biometric Master Key Isolation
+      expect(getBiometricKey(userA), equals('vault_master_pin_usr_naufal_biometric_key_v1'));
+      expect(getBiometricKey(userB), equals('vault_master_pin_usr_kevin_biometric_key_v1'));
+      expect(getBiometricKey(guestUser), equals('vault_master_pin_guest_local_user_biometric_key_v1'));
+      expect(getBiometricKey(userA), isNot(equals(getBiometricKey(userB))));
+      expect(getBiometricKey(userB), isNot(equals(getBiometricKey(guestUser))));
     });
   });
 

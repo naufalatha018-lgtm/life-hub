@@ -49,7 +49,7 @@ class BiometricService {
   /// Attempts biometric authentication.
   /// Returns `true` on success, `false` on failure or cancellation.
   Future<bool> authenticate({
-    String localizedReason = 'Unlock your Actividata vault',
+    String localizedReason = 'Buka Brankas Actividata dengan sidik jari atau biometrik',
   }) async {
     if (!await isBiometricAvailable()) return false;
     try {

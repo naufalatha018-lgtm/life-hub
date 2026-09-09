@@ -11,6 +11,8 @@ class PinPadWidget extends StatefulWidget {
     this.subtitle = 'Enter your 6-digit PIN to decrypt confidential notes',
     this.stepLabel,
     this.errorMessage,
+    this.onBiometricPressed,
+    this.showBiometricButton = false,
   });
 
   final ValueChanged<String> onPinComplete;
@@ -18,6 +20,8 @@ class PinPadWidget extends StatefulWidget {
   final String subtitle;
   final String? stepLabel;
   final String? errorMessage;
+  final VoidCallback? onBiometricPressed;
+  final bool showBiometricButton;
 
   @override
   State<PinPadWidget> createState() => PinPadWidgetState();
@@ -256,6 +260,52 @@ class PinPadWidgetState extends State<PinPadWidget>
                     fontWeight: FontWeight.w600,
                   ),
                   textAlign: TextAlign.center,
+                ),
+              ],
+
+              // Sleek Biometric (Fingerprint / Face ID) Button
+              if (widget.showBiometricButton && widget.onBiometricPressed != null) ...[
+                const SizedBox(height: 24),
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: widget.onBiometricPressed,
+                    borderRadius: BorderRadius.circular(16),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(
+                              color: AppColors.primaryGlow,
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.fingerprint_rounded,
+                              size: 20,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          const Text(
+                            'Buka dengan Biometrik',
+                            style: TextStyle(
+                              color: AppColors.textPrimary,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
               ],
             ],

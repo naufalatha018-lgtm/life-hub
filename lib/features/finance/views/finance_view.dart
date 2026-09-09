@@ -16,7 +16,6 @@ import 'widgets/safe_to_spend_card.dart';
 
 import '../../../../core/widgets/currency_toggle_chip.dart';
 import '../../../../core/utils/currency_provider.dart';
-import '../../../../core/theme/glass_container.dart';
 
 class FinanceView extends ConsumerWidget {
   const FinanceView({super.key});
@@ -75,7 +74,7 @@ class FinanceView extends ConsumerWidget {
                 color: AppColors.primaryGlow,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.account_balance_wallet_rounded, color: AppColors.primaryLight, size: 20),
+              child: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primaryLight, size: 20),
             ),
             const SizedBox(width: 10),
             Flexible(
@@ -320,100 +319,133 @@ class FinanceView extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: GlassContainer(
-                      blur: 8,
-                      backgroundColor: AppColors.surfaceVariant.withOpacity(0.4),
-                      borderColor: AppColors.cardBorderSubtle,
+                    child: InkWell(
+                      onTap: () => _openAddTransaction(context, tx),
                       borderRadius: BorderRadius.circular(14),
-                      child: ListTile(
-                        onTap: () => _openAddTransaction(context, tx),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-                        leading: Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: isIncome ? AppColors.incomeBg : AppColors.expenseBg,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            AppConstants.getCategoryIcon(tx.category),
-                            color: isIncome ? AppColors.income : AppColors.expense,
-                            size: 20,
-                          ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: AppColors.cardBorderSubtle, width: 1.0),
                         ),
-                        title: Row(
+                        child: Row(
                           children: [
-                            Expanded(
-                              child: Text(
-                                tx.title,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            // Vector Category Icon Pill
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: (isIncome ? AppColors.income : AppColors.primaryLight)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                AppConstants.getCategoryIcon(tx.category),
+                                color: isIncome ? AppColors.income : AppColors.primaryLight,
+                                size: 20,
                               ),
                             ),
-                            if (tx.linkedTaskId != null) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: AppColors.primaryGlow,
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'Linked Task',
-                                  style: TextStyle(
-                                    color: AppColors.primaryLight,
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
+                            const SizedBox(width: 14),
+
+                            // Details Column
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          tx.title,
+                                          style: const TextStyle(
+                                            color: AppColors.textPrimary,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            letterSpacing: -0.2,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                      if (tx.linkedTaskId != null) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryGlow,
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'Task',
+                                            style: TextStyle(
+                                              color: AppColors.primaryLight,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
-                                ),
+                                  const SizedBox(height: 5),
+                                  Row(
+                                    children: [
+                                      // Neutral Category Pill
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.surfaceVariant,
+                                          borderRadius: BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          tx.category,
+                                          style: const TextStyle(
+                                            color: AppColors.textSecondary,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        DateFormatter.formatShort(tx.timestamp),
+                                        style: const TextStyle(
+                                          color: AppColors.textMuted,
+                                          fontSize: 11,
+                                        ),
+                                      ),
+                                      if (tx.location != null) ...[
+                                        const SizedBox(width: 6),
+                                        const Icon(Icons.near_me_outlined, size: 11, color: AppColors.textMuted),
+                                        const SizedBox(width: 2),
+                                        Flexible(
+                                          child: Text(
+                                            tx.location!.displayName,
+                                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
                               ),
-                            ],
+                            ),
+                            const SizedBox(width: 12),
+
+                            // Amount Display
+                            Text(
+                              formattedAmount,
+                              style: TextStyle(
+                                color: isIncome ? AppColors.income : AppColors.textPrimary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
                           ],
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            children: [
-                              Text(
-                                tx.category,
-                                style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
-                              ),
-                              const SizedBox(width: 6),
-                              const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                              const SizedBox(width: 6),
-                              Text(
-                                DateFormatter.formatShort(tx.timestamp),
-                                style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
-                              ),
-                              if (tx.location != null) ...[
-                                const SizedBox(width: 6),
-                                const Text('•', style: TextStyle(color: AppColors.textMuted, fontSize: 12)),
-                                const SizedBox(width: 6),
-                                const Icon(Icons.location_on_rounded, size: 12, color: AppColors.primaryLight),
-                                const SizedBox(width: 2),
-                                Flexible(
-                                  child: Text(
-                                    tx.location!.displayName,
-                                    style: const TextStyle(color: AppColors.primaryLight, fontSize: 11),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                        trailing: Text(
-                          formattedAmount,
-                          style: TextStyle(
-                            color: isIncome ? AppColors.income : AppColors.expense,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
                         ),
                       ),
                     ),

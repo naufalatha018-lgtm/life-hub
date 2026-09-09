@@ -75,7 +75,7 @@ class RecurringTransactionsNotifier
         type: t.type,
         category: t.category,
         timestamp: now,
-        note: '🔁 ${t.note ?? "Auto-recurring"}',
+        note: '[Recurring] ${t.note ?? "Auto-recurring"}',
         createdAt: now,
         updatedAt: now,
       );

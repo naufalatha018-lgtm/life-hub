@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/crypto/session_key_holder.dart';
+import '../../../core/services/biometric_service.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../vault/providers/vault_files_provider.dart';
 import 'notes_crud_provider.dart';
@@ -47,6 +48,7 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
   String get _keyVerifier => 'vault_master_pin_${userId}_verifier_v1';
   String get _keyRecovery => 'vault_master_pin_${userId}_recovery_v1';
   String get _keyPin => 'vault_master_pin_$userId';
+  String get _keyBiometricKey => 'vault_master_pin_${userId}_biometric_key_v1';
 
   Future<void> checkPinConfiguration() async {
     try {
@@ -76,6 +78,7 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
     await _storage.write(key: _keyVerifier, value: verifier);
     await _storage.write(key: _keyRecovery, value: recoveryCode);
     await _storage.write(key: _keyPin, value: verifier);
+    await _storage.write(key: _keyBiometricKey, value: base64Encode(derivedKey));
 
     _keyHolder.setKey(derivedKey);
     state = NotesAuthStatus.unlocked;
@@ -104,6 +107,8 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
       final calculatedVerifier = AesGcmHelper.computeAuthVerifier(derivedKey);
 
       if (calculatedVerifier == storedVerifier) {
+        // Cache the derived key securely for seamless biometric unlock on next entry
+        await _storage.write(key: _keyBiometricKey, value: base64Encode(derivedKey));
         _keyHolder.setKey(derivedKey);
         state = NotesAuthStatus.unlocked;
         await _ref.read(decryptedNotesProvider.notifier).loadDecryptedNotes();
@@ -209,6 +214,7 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
     await _storage.write(key: _keySalt, value: base64Encode(newSalt));
     await _storage.write(key: _keyVerifier, value: newVerifier);
     await _storage.write(key: _keyRecovery, value: newRecoveryCode);
+    await _storage.write(key: _keyBiometricKey, value: base64Encode(newKey));
 
     _keyHolder.setKey(newKey);
     state = NotesAuthStatus.unlocked;
@@ -245,6 +251,52 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
     return await _storage.read(key: _keyRecovery);
   }
 
+  /// Attempts to unlock the vault using biometric authentication (fingerprint / face).
+  /// Decrypts the session key using the stored per-user master key.
+  Future<bool> unlockWithBiometrics() async {
+    try {
+      final canUse = await canUseBiometrics();
+      if (!canUse) return false;
+
+      final success = await BiometricService.instance.authenticate(
+        localizedReason: 'Buka Brankas Actividata dengan sidik jari atau biometrik',
+      );
+      if (!success) return false;
+
+      final keyB64 = await _storage.read(key: _keyBiometricKey);
+      final storedVerifier = await _storage.read(key: _keyVerifier);
+      if (keyB64 == null || storedVerifier == null) return false;
+
+      final derivedKey = base64Decode(keyB64);
+      final computedVerifier = AesGcmHelper.computeAuthVerifier(derivedKey);
+      if (computedVerifier != storedVerifier) {
+        return false;
+      }
+
+      _keyHolder.setKey(derivedKey);
+      state = NotesAuthStatus.unlocked;
+      await _ref.read(decryptedNotesProvider.notifier).loadDecryptedNotes();
+      await _ref.read(decryptedVaultFilesProvider.notifier).loadDecryptedFiles();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Checks whether biometric authentication is available on device and configured for this user.
+  Future<bool> canUseBiometrics() async {
+    try {
+      final isHardwareAvailable = await BiometricService.instance.isBiometricAvailable();
+      if (!isHardwareAvailable) return false;
+
+      final keyB64 = await _storage.read(key: _keyBiometricKey);
+      final verifier = await _storage.read(key: _keyVerifier);
+      return keyB64 != null && verifier != null;
+    } catch (_) {
+      return false;
+    }
+  }
+
   /// Locks the vault and zeroes out all decrypted data and encryption keys from memory.
   void lockAndPurge() {
     _keyHolder.zeroize();
@@ -253,3 +305,12 @@ class NotesAuthNotifier extends StateNotifier<NotesAuthStatus> {
     state = NotesAuthStatus.locked;
   }
 }
+
+/// Provider to check if biometric unlock is configured and ready for the active user
+final vaultBiometricReadyProvider = FutureProvider<bool>((ref) async {
+  final status = ref.watch(notesAuthNotifierProvider);
+  if (status != NotesAuthStatus.locked) return false;
+  final notifier = ref.read(notesAuthNotifierProvider.notifier);
+  return await notifier.canUseBiometrics();
+});
+
