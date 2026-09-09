@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../database/app_database.dart';
+import '../utils/currency_formatter.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Search result model
@@ -82,7 +83,7 @@ class GlobalSearchService {
         [q, q],
       );
       for (final t in txns) {
-        final amountStr = '${t['type'] == 'income' ? '+' : '-'} Rp ${((t['amount_cents'] as int) / 100).toStringAsFixed(0)}';
+        final amountStr = '${t['type'] == 'income' ? '+' : '-'} ${CurrencyFormatter.formatCents((t['amount_cents'] as int).abs())}';
         results.add(SearchResult(
           type: SearchResultType.transaction,
           id: t['id'] as String,

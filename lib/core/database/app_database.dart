@@ -1,4 +1,4 @@
-﻿import 'package:sqflite_common_ffi/sqflite_ffi.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'db_platform/db_platform.dart';
 
 /// Platform-agnostic SQLite database engine for Life OS Life OS.
@@ -36,6 +36,11 @@ class AppDatabase {
         version: _databaseVersion,
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
+        onOpen: (db) async {
+          try {
+            await db.execute('ALTER TABLE app_users ADD COLUMN phone_number TEXT;');
+          } catch (_) {}
+        },
       ),
     );
   }
@@ -136,6 +141,7 @@ class AppDatabase {
         email TEXT NOT NULL,
         display_name TEXT,
         photo_url TEXT,
+        phone_number TEXT,
         auth_provider TEXT NOT NULL,
         password_hash TEXT,
         salt TEXT,

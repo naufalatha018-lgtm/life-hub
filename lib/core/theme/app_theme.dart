@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
@@ -241,20 +241,21 @@ class AppTheme {
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
+        height: 66,
         backgroundColor: surfaceColor,
         indicatorColor: primaryGlowColor,
-        elevation: 4,
+        elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.w600);
+            return TextStyle(color: primaryColor, fontSize: 11.5, fontWeight: FontWeight.w700);
           }
-          return TextStyle(color: textMuted, fontSize: 12, fontWeight: FontWeight.w500);
+          return TextStyle(color: textMuted, fontSize: 11.5, fontWeight: FontWeight.w500);
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return IconThemeData(color: primaryColor, size: 24);
+            return IconThemeData(color: primaryColor, size: 22);
           }
-          return IconThemeData(color: textMuted, size: 24);
+          return IconThemeData(color: textMuted, size: 22);
         }),
       ),
       navigationRailTheme: NavigationRailThemeData(

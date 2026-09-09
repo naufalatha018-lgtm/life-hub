@@ -43,7 +43,9 @@ class _AddTaskDialogState extends ConsumerState<AddTaskDialog> {
     _descController = TextEditingController(text: task?.description ?? '');
     _costController = TextEditingController(
       text: task != null && task.estimatedCostCents > 0
-          ? (task.estimatedCostCents / 100.0).toStringAsFixed(2)
+          ? (ref.read(activeCurrencyProvider) == AppCurrency.idr
+              ? task.estimatedCostCents.toString()
+              : (task.estimatedCostCents / 100.0).toStringAsFixed(2))
           : '',
     );
     _status = task?.status ?? widget.initialStatus ?? TaskStatus.todo;

@@ -46,16 +46,15 @@ class CurrencyFormatter {
   static int idrToCents(int idrAmount) => (idrAmount / idrPerCent).round();
 
   /// Converts integer cents to formatted currency string in USD or IDR.
-  /// Example (USD): 1050 -> "$10.50", -2500 -> "-$25.00"
-  /// Example (IDR): 100 cents = $1.00 = 16,000 IDR -> "Rp 16.000"
+  /// Example (IDR): 5000 -> "Rp 5.000" (raw exact integer, no float conversion)
+  /// Example (USD): 1050 cents -> "$10.50"
   static String formatCents(
     int amountCents, {
     bool showSign = false,
     AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
-      final idrValue = (amountCents * idrPerCent).round();
-      final formatted = _idrFormat.format(idrValue.abs()).trim();
+      final formatted = _idrFormat.format(amountCents.abs()).trim();
       if (amountCents < 0) {
         return '-$formatted';
       } else if (showSign && amountCents > 0) {
@@ -73,13 +72,13 @@ class CurrencyFormatter {
 
   /// Converts integer cents to compact currency representation.
   /// USD: $1.2K, $2.5M
-  /// IDR: Rp 160K, Rp 1.6M, Rp 16M
+  /// IDR: Rp 5K, Rp 16M
   static String formatCompactCents(
     int amountCents, {
     AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
-      final double idr = (amountCents * idrPerCent).toDouble();
+      final double idr = amountCents.toDouble();
       if (idr.abs() >= 1000000000) {
         return 'Rp ${(idr / 1000000000).toStringAsFixed(1)}B';
       } else if (idr.abs() >= 1000000) {
@@ -99,18 +98,17 @@ class CurrencyFormatter {
     return _usdFormat.format(value);
   }
 
-  /// Parses user-entered text into integer cents based on selected currency.
-  /// Eliminates all floating-point precision loss.
+  /// Parses user-entered text into raw integer based on selected currency.
+  /// In IDR: "5000", "5.000", "Rp 5.000" -> 5000 raw integer (zero float loss).
+  /// In USD: "10.50", "$10.50" -> 1050 cents.
   static int parseToCents(
     String input, {
     AppCurrency currency = AppCurrency.idr,
   }) {
     if (currency == AppCurrency.idr) {
-      // In IDR, user types e.g. "50000" or "50.000" or "Rp 50.000"
       final clean = input.replaceAll(RegExp(r'[^0-9]'), '').trim();
       if (clean.isEmpty) return 0;
-      final idrAmount = int.tryParse(clean) ?? 0;
-      return (idrAmount / idrPerCent).round();
+      return int.tryParse(clean) ?? 0;
     }
 
     final clean = input.replaceAll(RegExp(r'[^0-9.]'), '').trim();

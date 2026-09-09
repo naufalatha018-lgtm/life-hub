@@ -31,10 +31,8 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSnapshot>> {
   }
 
   Future<void> requestPermissions() async {
-    final granted = await _service.requestPermissions();
-    if (granted) {
-      await sync();
-    }
+    await _service.requestPermissions();
+    await sync();
   }
 
   Future<void> installHealthConnect() async {

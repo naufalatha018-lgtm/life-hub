@@ -15,7 +15,6 @@ import 'subviews/settings_language_view.dart';
 import 'subviews/settings_notifications_view.dart';
 import 'subviews/settings_security_view.dart';
 import 'subviews/settings_storage_view.dart';
-import 'subviews/settings_theme_view.dart';
 import '../../emergency/views/emergency_card_view.dart';
 
 class SettingsView extends ConsumerWidget {
@@ -225,15 +224,6 @@ class SettingsView extends ConsumerWidget {
               title: strings.settingsNotificationsTitle,
               subtitle: strings.settingsNotificationsSubtitle,
               page: const SettingsNotificationsView(),
-            ),
-            const SizedBox(height: 10),
-            _buildNavCard(
-              context: context,
-              icon: Icons.palette_outlined,
-              color: const Color(0xFF8B5CF6),
-              title: strings.settingsThemeTitle,
-              subtitle: strings.settingsThemeSubtitle,
-              page: const SettingsThemeView(),
             ),
             const SizedBox(height: 10),
             // Emergency SOS Card — always accessible, no PIN required

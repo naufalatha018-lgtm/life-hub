@@ -13,7 +13,7 @@ void main() {
         priority: TaskPriority.high,
         category: 'Shopping',
         dueDate: DateTime.now(),
-        estimatedCostCents: 4575, // $45.75
+        estimatedCostCents: 732000, // Rp 732.000 (raw exact integer)
         isExpenseLogged: false,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -37,7 +37,7 @@ void main() {
         updatedAt: DateTime.now(),
       );
 
-      expect(expenseTx.amountCents, equals(4575));
+      expect(expenseTx.amountCents, equals(732000));
       expect(expenseTx.isExpense, isTrue);
       expect(expenseTx.linkedTaskId, equals('task_grocery_01'));
       expect(expenseTx.formattedAmount, equals('Rp 732.000'));

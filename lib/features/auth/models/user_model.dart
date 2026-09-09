@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 
 @immutable
 class AppUser {
@@ -6,6 +6,7 @@ class AppUser {
   final String email;
   final String? displayName;
   final String? photoUrl;
+  final String? phoneNumber;
   final String authProvider; // 'local', 'google', 'guest'
   final bool isVerified;
   final DateTime createdAt;
@@ -16,6 +17,7 @@ class AppUser {
     required this.email,
     this.displayName,
     this.photoUrl,
+    this.phoneNumber,
     required this.authProvider,
     this.isVerified = true,
     required this.createdAt,
@@ -41,6 +43,7 @@ class AppUser {
     String? email,
     String? displayName,
     String? photoUrl,
+    String? phoneNumber,
     String? authProvider,
     bool? isVerified,
     DateTime? createdAt,
@@ -51,6 +54,7 @@ class AppUser {
       email: email ?? this.email,
       displayName: displayName ?? this.displayName,
       photoUrl: photoUrl ?? this.photoUrl,
+      phoneNumber: phoneNumber ?? this.phoneNumber,
       authProvider: authProvider ?? this.authProvider,
       isVerified: isVerified ?? this.isVerified,
       createdAt: createdAt ?? this.createdAt,
@@ -64,6 +68,7 @@ class AppUser {
       'email': email,
       'display_name': displayName,
       'photo_url': photoUrl,
+      'phone_number': phoneNumber,
       'auth_provider': authProvider,
       'is_verified': isVerified ? 1 : 0,
       'created_at': createdAt.millisecondsSinceEpoch,
@@ -77,6 +82,7 @@ class AppUser {
       email: map['email'] as String,
       displayName: map['display_name'] as String?,
       photoUrl: map['photo_url'] as String?,
+      phoneNumber: map['phone_number'] as String?,
       authProvider: map['auth_provider'] as String,
       isVerified: ((map['is_verified'] as num?)?.toInt() ?? 1) == 1,
       createdAt: DateTime.fromMillisecondsSinceEpoch((map['created_at'] as num).toInt()),

@@ -666,6 +666,50 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     );
   }
 
+  Future<void> updateProfile({
+    String? displayName,
+    String? phoneNumber,
+    String? photoUrl,
+  }) async {
+    final currentUser = state.value;
+    if (currentUser == null) return;
+
+    final updated = currentUser.copyWith(
+      displayName: displayName ?? currentUser.displayName,
+      phoneNumber: phoneNumber ?? currentUser.phoneNumber,
+      photoUrl: photoUrl ?? currentUser.photoUrl,
+    );
+
+    final db = await _db.database;
+    await db.update(
+      'app_users',
+      {
+        'display_name': updated.displayName,
+        'phone_number': updated.phoneNumber,
+        'photo_url': updated.photoUrl,
+      },
+      where: 'id = ?',
+      whereArgs: [currentUser.id],
+    );
+
+    // If Supabase is active and signed in, sync user metadata
+    try {
+      if (SupabaseService.instance.isInitialized && SupabaseService.instance.isSignedIn) {
+        await SupabaseService.instance.client?.auth.updateUser(
+          UserAttributes(
+            data: {
+              if (updated.displayName != null) 'display_name': updated.displayName,
+              if (updated.phoneNumber != null) 'phone_number': updated.phoneNumber,
+              if (updated.photoUrl != null) 'avatar_url': updated.photoUrl,
+            },
+          ),
+        );
+      }
+    } catch (_) {}
+
+    state = AsyncValue.data(updated);
+  }
+
   Future<void> deleteAccount() async {
     final currentUser = state.value;
     if (currentUser == null) return;

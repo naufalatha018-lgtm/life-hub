@@ -185,14 +185,11 @@ class HealthSyncService {
 
     final hasPerms = await hasPermissions();
     if (!hasPerms) {
-      final granted = await requestPermissions();
-      if (!granted) {
-        return HealthSnapshot.empty().copyWith(
-          isAvailable: true,
-          isConnected: false,
-          errorMessage: 'Izin Health Connect belum diberikan',
-        );
-      }
+      return HealthSnapshot.empty().copyWith(
+        isAvailable: true,
+        isConnected: false,
+        errorMessage: 'Izin Health Connect belum diberikan',
+      );
     }
 
     try {

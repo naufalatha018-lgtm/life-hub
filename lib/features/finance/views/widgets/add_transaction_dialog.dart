@@ -42,7 +42,11 @@ class _AddTransactionDialogState extends ConsumerState<AddTransactionDialog> {
     _type = tx?.type ?? TransactionType.expense;
     _titleController = TextEditingController(text: tx?.title ?? '');
     _amountController = TextEditingController(
-      text: tx != null ? (tx.amountCents / 100.0).toStringAsFixed(2) : '',
+      text: tx != null
+          ? (ref.read(activeCurrencyProvider) == AppCurrency.idr
+              ? tx.amountCents.toString()
+              : (tx.amountCents / 100.0).toStringAsFixed(2))
+          : '',
     );
     _noteController = TextEditingController(text: tx?.note ?? '');
     _category = tx?.category ??

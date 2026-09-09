@@ -3,13 +3,16 @@ import 'package:life_hub/core/utils/currency_formatter.dart';
 
 void main() {
   group('Finance Integer Precision & Currency Formatter Suite', () {
-    test('Default formatting uses Indonesian Rupiah (IDR / Rp)', () {
-      expect(CurrencyFormatter.formatCents(100), equals('Rp 16.000'));
+    test('Default formatting uses Indonesian Rupiah (IDR / Rp) as exact raw integers', () {
+      expect(CurrencyFormatter.formatCents(5000), equals('Rp 5.000'));
       expect(CurrencyFormatter.formatCents(0), equals('Rp 0'));
-      expect(CurrencyFormatter.formatCents(-100), equals('-Rp 16.000'));
-      expect(CurrencyFormatter.formatCompactCents(100000), equals('Rp 16.0M'));
-      expect(CurrencyFormatter.parseToCents('16000'), equals(100));
-      expect(CurrencyFormatter.parseToCents('Rp 16.000'), equals(100));
+      expect(CurrencyFormatter.formatCents(-5000), equals('-Rp 5.000'));
+      expect(CurrencyFormatter.formatCompactCents(5000), equals('Rp 5K'));
+      expect(CurrencyFormatter.formatCompactCents(16000000), equals('Rp 16.0M'));
+      expect(CurrencyFormatter.parseToCents('5000'), equals(5000));
+      expect(CurrencyFormatter.parseToCents('Rp 5.000'), equals(5000));
+      expect(CurrencyFormatter.parseToCents('16000'), equals(16000));
+      expect(CurrencyFormatter.parseToCents('Rp 16.000'), equals(16000));
     });
 
     test('Converts user string inputs directly to integer cents without float drift (USD)', () {

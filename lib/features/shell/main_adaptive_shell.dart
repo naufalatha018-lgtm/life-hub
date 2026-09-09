@@ -289,36 +289,51 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                 ),
           bottomNavigationBar: isDesktop
               ? null
-              : NavigationBar(
-                  selectedIndex: currentIndex,
-                  onDestinationSelected: _onNavTap,
-                  destinations: [
-                    NavigationDestination(
-                      icon: const Icon(Icons.home_outlined),
-                      selectedIcon: const Icon(Icons.home_rounded),
-                      label: strings.navDashboard,
+              : Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    border: Border(
+                      top: BorderSide(color: AppColors.cardBorderSubtle, width: 1),
                     ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.account_balance_wallet_outlined),
-                      selectedIcon: const Icon(Icons.account_balance_wallet_rounded),
-                      label: strings.navFinance,
+                  ),
+                  child: SafeArea(
+                    top: false,
+                    child: NavigationBar(
+                      height: 66,
+                      backgroundColor: Colors.transparent,
+                      elevation: 0,
+                      labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+                      selectedIndex: currentIndex,
+                      onDestinationSelected: _onNavTap,
+                      destinations: [
+                        NavigationDestination(
+                          icon: const Icon(Icons.home_outlined, size: 22),
+                          selectedIcon: const Icon(Icons.home_rounded, size: 22),
+                          label: strings.navDashboard,
+                        ),
+                        NavigationDestination(
+                          icon: const Icon(Icons.account_balance_wallet_outlined, size: 22),
+                          selectedIcon: const Icon(Icons.account_balance_wallet_rounded, size: 22),
+                          label: strings.navFinance,
+                        ),
+                        NavigationDestination(
+                          icon: const Icon(Icons.task_alt_outlined, size: 22),
+                          selectedIcon: const Icon(Icons.task_alt_rounded, size: 22),
+                          label: strings.navTasks,
+                        ),
+                        NavigationDestination(
+                          icon: const Icon(Icons.lock_outline_rounded, size: 22),
+                          selectedIcon: const Icon(Icons.lock_rounded, size: 22),
+                          label: strings.navVault,
+                        ),
+                        NavigationDestination(
+                          icon: const Icon(Icons.settings_outlined, size: 22),
+                          selectedIcon: const Icon(Icons.settings_rounded, size: 22),
+                          label: strings.navSettings,
+                        ),
+                      ],
                     ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.task_alt_outlined),
-                      selectedIcon: const Icon(Icons.task_alt_rounded),
-                      label: strings.navTasks,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.lock_outline_rounded),
-                      selectedIcon: const Icon(Icons.lock_rounded),
-                      label: strings.navVault,
-                    ),
-                    NavigationDestination(
-                      icon: const Icon(Icons.settings_outlined),
-                      selectedIcon: const Icon(Icons.settings_rounded),
-                      label: strings.navSettings,
-                    ),
-                  ],
+                  ),
                 ),
         ),
       ),

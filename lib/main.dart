@@ -10,7 +10,6 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/views/auth_screen.dart';
-import 'features/settings/providers/settings_providers.dart';
 import 'features/shell/main_adaptive_shell.dart';
 
 void main() async {
@@ -68,18 +67,15 @@ class LifeOsApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authNotifierProvider);
-    final themeVariant = ref.watch(appThemeVariantProvider);
     final activeLanguage = ref.watch(localeProvider);
 
-    final themeData = AppTheme.forVariant(themeVariant);
+    final executiveLightTheme = AppTheme.lightTheme;
 
     return MaterialApp(
       title: 'Life OS',
       debugShowCheckedModeBanner: false,
       locale: Locale(activeLanguage.code),
-      theme: themeData,
-      darkTheme: AppTheme.darkMidnightTheme,
-      // ThemeMode.light is set because we drive theme via themeVariant/themeData
+      theme: executiveLightTheme,
       themeMode: ThemeMode.light,
       home: authState.when(
         data: (user) {
@@ -88,11 +84,11 @@ class LifeOsApp extends ConsumerWidget {
           }
           return const MainAdaptiveShell();
         },
-        loading: () => Scaffold(
+        loading: () => const Scaffold(
           backgroundColor: AppColors.background,
           body: Center(
             child: CircularProgressIndicator(
-              color: AppTheme.forVariant(themeVariant).colorScheme.primary,
+              color: AppColors.primary,
               strokeWidth: 2,
             ),
           ),

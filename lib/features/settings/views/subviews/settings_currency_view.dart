@@ -12,6 +12,7 @@ class SettingsCurrencyView extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final strings = ref.watch(appStringsProvider);
+    final isId = ref.watch(localeProvider).languageCode == 'id';
     final activeCurrency = ref.watch(currencyNotifierProvider);
     final forexState = ref.watch(forexRateProvider);
 
@@ -143,16 +144,53 @@ class SettingsCurrencyView extends ConsumerWidget {
                   _buildForexRow('SGD ➔ IDR', 'Rp ${(forexState.rate * 0.75).toStringAsFixed(0)}'),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: () {
-                      ref.read(forexRateProvider.notifier).syncRates();
-                    },
+                    onPressed: forexState.isFetching
+                        ? null
+                        : () async {
+                            final res = await ref.read(forexRateProvider.notifier).refreshRate();
+                            if (context.mounted) {
+                              if (res != null && res.isLive) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isId
+                                          ? 'Kurs live berhasil diperbarui! 1 USD = Rp ${res.rate.toStringAsFixed(0)}'
+                                          : 'Live exchange rates synced! 1 USD = Rp ${res.rate.toStringAsFixed(0)}',
+                                    ),
+                                    backgroundColor: AppColors.income,
+                                  ),
+                                );
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      isId
+                                          ? 'Gagal memuat kurs live terbaru. Menggunakan kurs cache offline.'
+                                          : 'Could not fetch live rates. Using cached rates.',
+                                    ),
+                                    backgroundColor: const Color(0xFFF59E0B),
+                                  ),
+                                );
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                    icon: const Icon(Icons.sync_rounded, size: 18),
-                    label: Text(strings.syncRatesButton),
+                    icon: forexState.isFetching
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.sync_rounded, size: 18),
+                    label: Text(
+                      forexState.isFetching
+                          ? (isId ? 'Memperbarui...' : 'Syncing...')
+                          : strings.syncRatesButton,
+                    ),
                   ),
                 ],
               ),

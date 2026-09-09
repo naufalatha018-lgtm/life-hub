@@ -1,15 +1,134 @@
-﻿import 'package:flutter/material.dart';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../../../core/localization/locale_provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/glass_container.dart';
+import '../../../auth/models/user_model.dart';
 import '../../../auth/providers/auth_provider.dart';
 import '../../providers/settings_providers.dart';
 
-class SettingsAccountView extends ConsumerWidget {
+class SettingsAccountView extends ConsumerStatefulWidget {
   const SettingsAccountView({super.key});
 
-  void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+  @override
+  ConsumerState<SettingsAccountView> createState() => _SettingsAccountViewState();
+}
+
+class _SettingsAccountViewState extends ConsumerState<SettingsAccountView> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _phoneController;
+  bool _isSaving = false;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController();
+    _phoneController = TextEditingController();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      final user = ref.read(authNotifierProvider).value;
+      if (user != null) {
+        _nameController.text = user.displayName ?? '';
+        _phoneController.text = user.phoneNumber ?? '';
+      }
+      _initialized = true;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickProfilePhoto(AppUser user) async {
+    try {
+      final result = await FilePicker.pickFiles(
+        type: FileType.image,
+        allowMultiple: false,
+      );
+
+      if (result != null && result.files.single.path != null) {
+        final sourceFile = File(result.files.single.path!);
+        if (await sourceFile.exists()) {
+          final docDir = await getApplicationDocumentsDirectory();
+          final avatarDir = Directory(p.join(docDir.path, 'profile_avatars'));
+          if (!await avatarDir.exists()) {
+            await avatarDir.create(recursive: true);
+          }
+          final ext = p.extension(sourceFile.path);
+          final targetPath = p.join(avatarDir.path, 'avatar_${user.id}$ext');
+          await sourceFile.copy(targetPath);
+
+          await ref.read(authNotifierProvider.notifier).updateProfile(
+                photoUrl: targetPath,
+              );
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Foto profil berhasil diperbarui!'),
+                backgroundColor: AppColors.income,
+              ),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal memilih foto: $e'),
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(authNotifierProvider.notifier).updateProfile(
+            displayName: _nameController.text.trim(),
+            phoneNumber: _phoneController.text.trim(),
+          );
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil & nomor telepon berhasil disimpan!'),
+            backgroundColor: AppColors.income,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Gagal menyimpan profil: $e'),
+            backgroundColor: AppColors.expense,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  void _showChangePasswordDialog(BuildContext context) {
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -17,7 +136,7 @@ class SettingsAccountView extends ConsumerWidget {
     );
   }
 
-  void _showWipeDataConfirm(BuildContext context, WidgetRef ref) {
+  void _showWipeDataConfirm(BuildContext context) {
     final strings = ref.read(appStringsProvider);
 
     showDialog(
@@ -51,10 +170,23 @@ class SettingsAccountView extends ConsumerWidget {
     );
   }
 
+  ImageProvider? _getAvatarImage(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+      return NetworkImage(photoUrl);
+    }
+    final file = File(photoUrl);
+    if (file.existsSync()) {
+      return FileImage(file);
+    }
+    return null;
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final user = ref.watch(authNotifierProvider).value;
     final strings = ref.watch(appStringsProvider);
+    final avatarProvider = _getAvatarImage(user?.photoUrl);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -75,7 +207,7 @@ class SettingsAccountView extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // User Profile Card
+            // User Profile Header with Avatar Picker
             GlassContainer(
               blur: 10,
               backgroundColor: AppColors.surface,
@@ -84,17 +216,43 @@ class SettingsAccountView extends ConsumerWidget {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 32,
-                    backgroundColor: AppColors.primaryGlow,
-                    child: Text(
-                      user?.effectiveName.isNotEmpty == true ? user!.effectiveName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 36,
+                        backgroundColor: AppColors.primaryGlow,
+                        backgroundImage: avatarProvider,
+                        child: avatarProvider == null
+                            ? Text(
+                                user?.effectiveName.isNotEmpty == true
+                                    ? user!.effectiveName[0].toUpperCase()
+                                    : 'U',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
                       ),
-                    ),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Material(
+                          color: AppColors.primary,
+                          shape: const CircleBorder(),
+                          elevation: 2,
+                          child: InkWell(
+                            customBorder: const CircleBorder(),
+                            onTap: user != null ? () => _pickProfilePhoto(user) : null,
+                            child: const Padding(
+                              padding: EdgeInsets.all(6),
+                              child: Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -117,6 +275,16 @@ class SettingsAccountView extends ConsumerWidget {
                             fontSize: 13,
                           ),
                         ),
+                        if (user?.phoneNumber != null && user!.phoneNumber!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            user.phoneNumber!,
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -138,6 +306,81 @@ class SettingsAccountView extends ConsumerWidget {
                           ),
                         ),
                       ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Profile Information Form
+            GlassContainer(
+              blur: 10,
+              backgroundColor: AppColors.surface,
+              borderColor: AppColors.cardBorder,
+              borderRadius: BorderRadius.circular(18),
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryGlow,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Icon(Icons.badge_outlined, color: AppColors.primary, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Informasi Akun & Kontak',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nama Lengkap / Panggilan',
+                      prefixIcon: Icon(Icons.person_outline_rounded),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _phoneController,
+                    keyboardType: TextInputType.phone,
+                    decoration: const InputDecoration(
+                      labelText: 'Nomor Telepon (WhatsApp / Seluler)',
+                      hintText: '+62 812 3456 7890',
+                      prefixIcon: Icon(Icons.phone_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _saveProfile,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Icon(Icons.save_rounded, size: 18),
+                      label: Text(_isSaving ? 'Menyimpan...' : 'Simpan Perubahan'),
                     ),
                   ),
                 ],
@@ -175,7 +418,7 @@ class SettingsAccountView extends ConsumerWidget {
                     style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                   ),
                   trailing: const Icon(Icons.arrow_forward_ios_rounded, color: AppColors.textMuted, size: 14),
-                  onTap: () => _showChangePasswordDialog(context, ref),
+                  onTap: () => _showChangePasswordDialog(context),
                 ),
               ),
               const SizedBox(height: 20),
@@ -217,7 +460,7 @@ class SettingsAccountView extends ConsumerWidget {
                       side: const BorderSide(color: AppColors.expense),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    onPressed: () => _showWipeDataConfirm(context, ref),
+                    onPressed: () => _showWipeDataConfirm(context),
                     icon: const Icon(Icons.delete_forever_rounded, size: 18),
                     label: Text(strings.wipeDataConfirmButton),
                   ),

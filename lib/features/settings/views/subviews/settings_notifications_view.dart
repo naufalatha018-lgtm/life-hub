@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/localization/locale_provider.dart';
+import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/glass_container.dart';
 
@@ -70,7 +71,21 @@ class SettingsNotificationsView extends ConsumerWidget {
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 value: dailyEnabled,
-                onChanged: (val) => ref.read(dailyReminderEnabledProvider.notifier).state = val,
+                onChanged: (val) async {
+                  ref.read(dailyReminderEnabledProvider.notifier).state = val;
+                  if (val) {
+                    final granted = await NotificationService.instance.requestPermission();
+                    if (!granted && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Izin notifikasi belum diaktifkan di sistem.'),
+                          backgroundColor: Color(0xFFF59E0B),
+                        ),
+                      );
+                    }
+                  }
+                  await NotificationService.instance.scheduleDailyFinanceReminder(enabled: val);
+                },
               ),
             ),
             const SizedBox(height: 12),
@@ -102,7 +117,13 @@ class SettingsNotificationsView extends ConsumerWidget {
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 value: billEnabled,
-                onChanged: (val) => ref.read(billReminderEnabledProvider.notifier).state = val,
+                onChanged: (val) async {
+                  ref.read(billReminderEnabledProvider.notifier).state = val;
+                  if (val) {
+                    await NotificationService.instance.requestPermission();
+                  }
+                  await NotificationService.instance.scheduleBillReminder(enabled: val);
+                },
               ),
             ),
             const SizedBox(height: 12),
@@ -134,7 +155,41 @@ class SettingsNotificationsView extends ConsumerWidget {
                   style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                 ),
                 value: taskEnabled,
-                onChanged: (val) => ref.read(taskReminderEnabledProvider.notifier).state = val,
+                onChanged: (val) async {
+                  ref.read(taskReminderEnabledProvider.notifier).state = val;
+                  if (val) {
+                    await NotificationService.instance.requestPermission();
+                  }
+                  await NotificationService.instance.scheduleTaskDeadlineToggle(enabled: val);
+                },
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // Instant Test Notification Button
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () async {
+                  await NotificationService.instance.requestPermission();
+                  await NotificationService.instance.showHeadsUpNotification(
+                    id: 9999,
+                    title: '⚡ Notifikasi Sistem Life OS',
+                    body: 'Notifikasi heads-up berhasil muncul dengan prioritas tinggi di layar!',
+                    channel: NotificationService.dailyFinanceChannel,
+                  );
+                },
+                icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                label: const Text(
+                  'Kirim Notifikasi Uji Coba (Banner)',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
             ),
           ],

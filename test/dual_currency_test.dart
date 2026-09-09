@@ -38,13 +38,13 @@ void main() {
     });
 
     test('Formats IDR properly with Rp symbol and thousands separators', () {
-      // 100 cents ($1.00) -> Rp 16.000 (or localized with dot separator)
-      final formatted1Usd = CurrencyFormatter.formatCents(100, currency: AppCurrency.idr);
-      expect(formatted1Usd, contains('Rp'));
-      expect(formatted1Usd, contains('16'));
+      // 16.000 IDR -> Rp 16.000 (localized with dot separator)
+      final formatted16k = CurrencyFormatter.formatCents(16000, currency: AppCurrency.idr);
+      expect(formatted16k, contains('Rp'));
+      expect(formatted16k, contains('16'));
 
       // Negative IDR
-      final formattedNeg = CurrencyFormatter.formatCents(-100, currency: AppCurrency.idr);
+      final formattedNeg = CurrencyFormatter.formatCents(-16000, currency: AppCurrency.idr);
       expect(formattedNeg, contains('-'));
       expect(formattedNeg, contains('16'));
     });
@@ -58,12 +58,13 @@ void main() {
       expect(CurrencyFormatter.parseToCents('', currency: AppCurrency.usd), equals(0));
     });
 
-    test('Parses IDR input strings to integer cents accurately', () {
-      // Rp 16.000 = 100 cents
-      expect(CurrencyFormatter.parseToCents('16000', currency: AppCurrency.idr), equals(100));
-      expect(CurrencyFormatter.parseToCents('Rp 16.000', currency: AppCurrency.idr), equals(100));
-      expect(CurrencyFormatter.parseToCents('160.000', currency: AppCurrency.idr), equals(1000));
-      expect(CurrencyFormatter.parseToCents('Rp 80.000', currency: AppCurrency.idr), equals(500));
+    test('Parses IDR input strings to raw exact integers accurately', () {
+      expect(CurrencyFormatter.parseToCents('5000', currency: AppCurrency.idr), equals(5000));
+      expect(CurrencyFormatter.parseToCents('Rp 5.000', currency: AppCurrency.idr), equals(5000));
+      expect(CurrencyFormatter.parseToCents('16000', currency: AppCurrency.idr), equals(16000));
+      expect(CurrencyFormatter.parseToCents('Rp 16.000', currency: AppCurrency.idr), equals(16000));
+      expect(CurrencyFormatter.parseToCents('160.000', currency: AppCurrency.idr), equals(160000));
+      expect(CurrencyFormatter.parseToCents('Rp 80.000', currency: AppCurrency.idr), equals(80000));
     });
 
     test('Compact format works for both currencies', () {
