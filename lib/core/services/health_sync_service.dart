@@ -1,5 +1,6 @@
 import 'dart:io' show Platform;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show MethodChannel;
 import 'package:health/health.dart';
 
 /// Telemetry snapshot from Health Connect / wearable devices
@@ -147,7 +148,23 @@ class HealthSyncService {
     }
   }
 
+  static const MethodChannel _healthChannel = MethodChannel('com.lifehub.app/health_settings');
+
+  /// Launches Android system settings intent for Health Connect / app permissions.
+  Future<bool> openHealthSettings() async {
+    if (kIsWeb || !Platform.isAndroid) return false;
+    try {
+      final bool? success = await _healthChannel.invokeMethod<bool>('openHealthConnectSettings');
+      return success ?? false;
+    } catch (e) {
+      debugPrint('[HealthSyncService] openHealthSettings error: $e');
+      return false;
+    }
+  }
+
   /// Requests authorization from the user via the Health Connect system prompt.
+  /// If permissions cannot be shown automatically or are not granted, launches Android
+  /// settings intent for Health Connect permissions directly.
   Future<bool> requestPermissions() async {
     if (kIsWeb) return false;
     await _ensureConfigured();
@@ -156,9 +173,14 @@ class HealthSyncService {
         _dataTypes,
         permissions: _permissions,
       );
+      if (!granted) {
+        debugPrint('[HealthSyncService] requestAuthorization returned false. Launching settings intent...');
+        await openHealthSettings();
+      }
       return granted;
     } catch (e) {
-      debugPrint('[HealthSyncService] requestAuthorization error: $e');
+      debugPrint('[HealthSyncService] requestAuthorization error: $e. Launching settings intent...');
+      await openHealthSettings();
       return false;
     }
   }

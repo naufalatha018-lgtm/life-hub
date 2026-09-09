@@ -180,7 +180,7 @@ class SettingsNotificationsView extends ConsumerWidget {
                   await NotificationService.instance.requestPermission();
                   await NotificationService.instance.showHeadsUpNotification(
                     id: 9999,
-                    title: '⚡ Notifikasi Sistem Life OS',
+                    title: '⚡ Notifikasi Sistem Actividata',
                     body: 'Notifikasi heads-up berhasil muncul dengan prioritas tinggi di layar!',
                     channel: NotificationService.dailyFinanceChannel,
                   );

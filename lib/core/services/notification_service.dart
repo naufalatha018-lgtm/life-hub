@@ -72,7 +72,7 @@ class NotificationService {
       requestBadgePermission: false,
       requestSoundPermission: false,
     );
-    const linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open Life OS');
+    const linuxSettings = LinuxInitializationSettings(defaultActionName: 'Open Actividata');
 
     const settings = InitializationSettings(
       android: androidSettings,
@@ -146,7 +146,7 @@ class NotificationService {
           channelDescription: channel.description,
           importance: Importance.max,
           priority: Priority.high,
-          ticker: 'Life OS Notification',
+          ticker: 'Actividata Notification',
           icon: '@mipmap/launcher_icon',
           playSound: true,
           enableVibration: true,
@@ -197,7 +197,7 @@ class NotificationService {
     await showHeadsUpNotification(
       id: 8101,
       title: '🔔 Pengingat Finansial Aktif',
-      body: 'Life OS akan mengingatkan Anda setiap pukul 20:00 untuk mencatat keuangan.',
+      body: 'Actividata akan mengingatkan Anda setiap pukul 20:00 untuk mencatat keuangan.',
       channel: dailyFinanceChannel,
     );
   }
@@ -238,7 +238,7 @@ class NotificationService {
     await showHeadsUpNotification(
       id: 8102,
       title: '💳 Pengingat Tagihan Aktif',
-      body: 'Life OS akan mengingatkan Anda saat ada tagihan atau langganan mendekati tempo.',
+      body: 'Actividata akan mengingatkan Anda saat ada tagihan atau langganan mendekati tempo.',
       channel: billChannel,
     );
   }

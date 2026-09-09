@@ -260,7 +260,7 @@ class _SettingsAccountViewState extends ConsumerState<SettingsAccountView> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.effectiveName ?? 'Life OS User',
+                          user?.effectiveName ?? 'Actividata User',
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 17,

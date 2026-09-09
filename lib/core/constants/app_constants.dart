@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class AppConstants {
   AppConstants._();
 
-  static const String appName = 'Life OS';
+  static const String appName = 'Actividata';
   static const int autoLockTimeoutSeconds = 120; // 2 minutes auto-lock timeout
   static const int pinLength = 6;
 

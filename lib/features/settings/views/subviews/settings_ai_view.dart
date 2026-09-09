@@ -389,8 +389,8 @@ class _SettingsAiViewState extends ConsumerState<SettingsAiView> {
           const SizedBox(height: 4),
           Text(
             isId
-                ? '✓ Kunci API tidak pernah dikirim ke server Life OS. Disimpan terenkripsi di perangkat Anda.'
-                : '✓ Your API key is never sent to Life OS servers. It\'s encrypted on your device only.',
+                ? '✓ Kunci API tidak pernah dikirim ke server Actividata. Disimpan terenkripsi di perangkat Anda.'
+                : '✓ Your API key is never sent to Actividata servers. It\'s encrypted on your device only.',
             style: theme.textTheme.bodySmall?.copyWith(
               color: AppColors.income,
               fontWeight: FontWeight.w500,

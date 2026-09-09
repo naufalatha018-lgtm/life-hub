@@ -293,8 +293,8 @@ class SettingsCloudSyncView extends ConsumerWidget {
           Expanded(
             child: Text(
               isId
-                  ? 'Data Anda dienkripsi dengan Row Level Security (RLS). Tidak ada orang lain — termasuk tim Life OS — yang dapat mengakses data Anda.'
-                  : 'Your data is secured with Row Level Security (RLS). No one — including the Life OS team — can access your data.',
+                  ? 'Data Anda dienkripsi dengan Row Level Security (RLS). Tidak ada orang lain — termasuk tim Actividata — yang dapat mengakses data Anda.'
+                  : 'Your data is secured with Row Level Security (RLS). No one — including the Actividata team — can access your data.',
               style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textSecondary, height: 1.5),
             ),
           ),

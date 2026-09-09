@@ -35,7 +35,7 @@ class AppUser {
     if (email.isNotEmpty && email.contains('@')) {
       return email.split('@').first;
     }
-    return isGuest ? 'Executive Guest' : 'Life OS Member';
+    return isGuest ? 'Executive Guest' : 'Actividata Member';
   }
 
   AppUser copyWith({

@@ -1,4 +1,4 @@
-﻿import 'package:flutter/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_auth/local_auth.dart';
@@ -49,7 +49,7 @@ class BiometricService {
   /// Attempts biometric authentication.
   /// Returns `true` on success, `false` on failure or cancellation.
   Future<bool> authenticate({
-    String localizedReason = 'Unlock your Life OS vault',
+    String localizedReason = 'Unlock your Actividata vault',
   }) async {
     if (!await isBiometricAvailable()) return false;
     try {

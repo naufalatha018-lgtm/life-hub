@@ -47,7 +47,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Life OS'), findsOneWidget);
+    expect(find.text('Actividata'), findsOneWidget);
     expect(find.text('Masuk'), findsWidgets);
   });
 

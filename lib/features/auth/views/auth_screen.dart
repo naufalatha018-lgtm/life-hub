@@ -558,7 +558,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           const SizedBox(height: 16),
           const Center(
             child: Text(
-              'Life OS',
+              'Actividata',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 24,

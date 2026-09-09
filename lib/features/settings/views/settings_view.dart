@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
@@ -19,6 +20,18 @@ import '../../emergency/views/emergency_card_view.dart';
 
 class SettingsView extends ConsumerWidget {
   const SettingsView({super.key});
+
+  ImageProvider? _getAvatarImage(String? photoUrl) {
+    if (photoUrl == null || photoUrl.isEmpty) return null;
+    if (photoUrl.startsWith('http://') || photoUrl.startsWith('https://')) {
+      return NetworkImage(photoUrl);
+    }
+    final file = File(photoUrl);
+    if (file.existsSync()) {
+      return FileImage(file);
+    }
+    return null;
+  }
 
   void _navigateTo(BuildContext context, Widget page) {
     Navigator.of(context).push(
@@ -48,6 +61,7 @@ class SettingsView extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.expense,
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () {
               Navigator.of(ctx).pop();
@@ -66,6 +80,7 @@ class SettingsView extends ConsumerWidget {
     final user = ref.watch(authNotifierProvider).value;
     final strings = ref.watch(appStringsProvider);
     final activeLanguage = ref.watch(localeProvider);
+    final avatarImage = _getAvatarImage(user?.photoUrl);
 
     final langSnippet = activeLanguage.languageCode == 'id' ? 'Bahasa Indonesia' : 'English (US)';
 
@@ -118,14 +133,17 @@ class SettingsView extends ConsumerWidget {
                   CircleAvatar(
                     radius: 28,
                     backgroundColor: AppColors.primaryGlow,
-                    child: Text(
-                      user?.effectiveName.isNotEmpty == true ? user!.effectiveName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    backgroundImage: avatarImage,
+                    child: avatarImage == null
+                        ? Text(
+                            user?.effectiveName.isNotEmpty == true ? user!.effectiveName[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -133,7 +151,7 @@ class SettingsView extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.effectiveName ?? 'Pengguna Life OS',
+                          user?.effectiveName ?? 'Pengguna Actividata',
                           style: const TextStyle(
                             color: AppColors.textPrimary,
                             fontSize: 16,

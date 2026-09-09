@@ -80,12 +80,12 @@ class FinanceExportService {
       final period = (year != null && month != null)
           ? '${year}_${month.toString().padLeft(2, '0')}'
           : (year?.toString() ?? 'all');
-      final file = File('${dir.path}/life_os_finance_$period.csv');
+      final file = File('${dir.path}/actividata_finance_$period.csv');
       await file.writeAsString(csv);
 
       await Share.shareXFiles(
         [XFile(file.path, mimeType: 'text/csv')],
-        subject: isId ? 'Laporan Keuangan Life OS' : 'Life OS Finance Report',
+        subject: isId ? 'Laporan Keuangan Actividata' : 'Actividata Finance Report',
       );
 
       return ExportResult.success(file.path, rows.length);

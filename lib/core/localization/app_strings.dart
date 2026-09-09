@@ -962,9 +962,9 @@ class IdAppStrings implements AppStrings {
   @override
   String get settingsAboutTitle => 'Tentang Aplikasi';
   @override
-  String get settingsAboutSubtitle => 'Informasi versi rilis dan platform Life OS';
+  String get settingsAboutSubtitle => 'Informasi versi rilis dan platform Actividata';
   @override
-  String get aboutMultiPlatform => 'Life OS Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
+  String get aboutMultiPlatform => 'Actividata Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
   @override
   String get settingsNotificationsTitle => 'Notifikasi & Pengingat';
   @override
@@ -990,7 +990,7 @@ class IdAppStrings implements AppStrings {
   @override
   String get navDashboard => 'Beranda';
   @override
-  String get dashboardTitle => 'Life OS';
+  String get dashboardTitle => 'Actividata';
   @override
   String get dashboardFinanceSummary => 'Ringkasan Keuangan Bulan Ini';
   @override
@@ -1168,9 +1168,9 @@ class IdAppStrings implements AppStrings {
   @override
   String get cloudSyncNever => 'Belum pernah disinkronkan';
 
-  // --- Life OS Branding ---
+  // --- Actividata Branding ---
   @override
-  String get appName => 'Life OS';
+  String get appName => 'Actividata';
   @override
   String get appVersion => 'Versi';
   @override
@@ -1721,9 +1721,9 @@ class EnAppStrings implements AppStrings {
   @override
   String get settingsAboutTitle => 'About Application';
   @override
-  String get settingsAboutSubtitle => 'Life OS version and platform release info';
+  String get settingsAboutSubtitle => 'Actividata version and platform release info';
   @override
-  String get aboutMultiPlatform => 'Life OS Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
+  String get aboutMultiPlatform => 'Actividata Multi-Platform Edition (Support: Android, iOS, Windows & Web)';
   @override
   String get settingsNotificationsTitle => 'Notifications & Reminders';
   @override
@@ -1749,7 +1749,7 @@ class EnAppStrings implements AppStrings {
   @override
   String get navDashboard => 'Home';
   @override
-  String get dashboardTitle => 'Life OS';
+  String get dashboardTitle => 'Actividata';
   @override
   String get dashboardFinanceSummary => 'This Month\'s Finance';
   @override
@@ -1927,9 +1927,9 @@ class EnAppStrings implements AppStrings {
   @override
   String get cloudSyncNever => 'Never synced';
 
-  // --- Life OS Branding ---
+  // --- Actividata Branding ---
   @override
-  String get appName => 'Life OS';
+  String get appName => 'Actividata';
   @override
   String get appVersion => 'Version';
   @override

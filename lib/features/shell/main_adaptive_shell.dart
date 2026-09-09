@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -193,22 +194,38 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                             ),
                             if (user != null) ...[
                               const SizedBox(height: 10),
-                              Tooltip(
-                                message: '${user.effectiveName}\n(${user.email})',
-                                child: CircleAvatar(
-                                  radius: 15,
-                                  backgroundColor: AppColors.primaryGlow,
-                                  child: Text(
-                                    user.effectiveName.isNotEmpty
-                                        ? user.effectiveName[0].toUpperCase()
-                                        : 'U',
-                                    style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.bold,
+                              Builder(
+                                builder: (context) {
+                                  ImageProvider? avatarImg;
+                                  if (user.photoUrl != null && user.photoUrl!.isNotEmpty) {
+                                    if (user.photoUrl!.startsWith('http://') || user.photoUrl!.startsWith('https://')) {
+                                      avatarImg = NetworkImage(user.photoUrl!);
+                                    } else {
+                                      final f = File(user.photoUrl!);
+                                      if (f.existsSync()) avatarImg = FileImage(f);
+                                    }
+                                  }
+                                  return Tooltip(
+                                    message: '${user.effectiveName}\n(${user.email})',
+                                    child: CircleAvatar(
+                                      radius: 15,
+                                      backgroundColor: AppColors.primaryGlow,
+                                      backgroundImage: avatarImg,
+                                      child: avatarImg == null
+                                          ? Text(
+                                              user.effectiveName.isNotEmpty
+                                                  ? user.effectiveName[0].toUpperCase()
+                                                  : 'U',
+                                              style: const TextStyle(
+                                                color: AppColors.primary,
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            )
+                                          : null,
                                     ),
-                                  ),
-                                ),
+                                  );
+                                },
                               ),
                             ],
                           ],

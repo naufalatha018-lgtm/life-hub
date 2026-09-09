@@ -72,7 +72,7 @@ class LifeOsApp extends ConsumerWidget {
     final executiveLightTheme = AppTheme.lightTheme;
 
     return MaterialApp(
-      title: 'Life OS',
+      title: 'Actividata',
       debugShowCheckedModeBanner: false,
       locale: Locale(activeLanguage.code),
       theme: executiveLightTheme,

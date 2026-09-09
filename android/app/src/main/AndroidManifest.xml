@@ -16,7 +16,7 @@
     <uses-permission android:name="android.permission.health.READ_TOTAL_CALORIES_BURNED"/>
 
     <application
-        android:label="Life OS"
+        android:label="Actividata"
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
@@ -42,15 +42,25 @@
             </intent-filter>
         </activity>
 
-        <!-- Health Connect permissions rationale -->
+        <!-- Health Connect permissions rationale (Android 14+) -->
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
             android:targetActivity="com.lifehub.app.MainActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
+        <!-- Health Connect permissions rationale (Legacy / Android 13-) -->
+        <activity-alias
+            android:name="PermissionRationaleActivity"
+            android:exported="true"
+            android:targetActivity="com.lifehub.app.MainActivity">
+            <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
-                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity-alias>
 
@@ -69,6 +79,10 @@
         <package android:name="com.google.android.apps.healthdata" />
         <intent>
             <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+            <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
         </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

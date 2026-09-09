@@ -165,8 +165,8 @@ Tasks: $completedTasks done, $pendingTasks pending.
     if (!isAvailable) return null;
     try {
       final systemPrompt = language == 'id'
-          ? 'Kamu adalah asisten pribadi dalam aplikasi Life OS. Bantu pengguna dengan keuangan, produktivitas, dan kesehatan. Jawab dengan singkat dan ramah dalam Bahasa Indonesia.'
-          : 'You are a personal assistant inside the Life OS app. Help users with finance, productivity, and wellness. Be concise and friendly in English.';
+          ? 'Kamu adalah asisten pribadi dalam aplikasi Actividata. Bantu pengguna dengan keuangan, produktivitas, dan kesehatan. Jawab dengan singkat dan ramah dalam Bahasa Indonesia.'
+          : 'You are a personal assistant inside the Actividata app. Help users with finance, productivity, and wellness. Be concise and friendly in English.';
 
       final contents = <Content>[
         Content.text(systemPrompt),
