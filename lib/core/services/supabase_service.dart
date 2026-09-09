@@ -82,7 +82,8 @@ class SupabaseService {
   }
 
   /// Web Client ID for Google Sign-In (OAuth server client ID for backend token exchange).
-  static const String googleServerClientId = 'PASTE_WEB_CLIENT_ID_KAMU_DI_SINI';
+  static const String googleServerClientId =
+      '59392267191-audaq0flvedrmtumdbt4j089n8rmu320.apps.googleusercontent.com';
 
   /// Performs Google Sign-In with configured [serverClientId] and links with Supabase.
   Future<AuthResponse?> signInWithGoogle({String? serverClientId}) async {
