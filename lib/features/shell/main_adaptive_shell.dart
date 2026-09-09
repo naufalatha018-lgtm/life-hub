@@ -158,7 +158,7 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
         onPointerMove: (_) => _onUserActivity(),
         child: Scaffold(
           backgroundColor: AppColors.background,
-          floatingActionButton: const QuickActionFab(),
+          floatingActionButton: currentIndex == 0 ? const QuickActionFab() : null,
           body: isDesktop
               ? Row(
                   children: [

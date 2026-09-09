@@ -22,7 +22,7 @@ class LiveHealthMetricsCard extends ConsumerWidget {
     final healthAsync = ref.watch(healthSyncProvider);
     final isId = ref.watch(localeProvider).code == 'id';
 
-    final snapshot = healthAsync.value ?? HealthSnapshot.demo();
+    final snapshot = healthAsync.value ?? HealthSnapshot.empty();
     final isLoading = healthAsync.isLoading;
 
     return GlassContainer(
@@ -81,9 +81,9 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(
+                    const Text(
                       'Redmi Watch 5 Lite • Health Connect',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.textMuted,
                         fontSize: 11,
                         fontWeight: FontWeight.w500,
@@ -133,7 +133,9 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                   iconColor: const Color(0xFF0284C7),
                   iconBg: const Color(0xFFE0F2FE),
                   label: isId ? 'Langkah' : 'Steps',
-                  value: NumberFormat('#,###').format(snapshot.steps),
+                  value: snapshot.steps > 0
+                      ? NumberFormat('#,###').format(snapshot.steps)
+                      : '0',
                   unit: isId ? 'langkah' : 'steps',
                   progress: (snapshot.steps / 10000.0).clamp(0.0, 1.0),
                   goalText: 'Goal: 10k',
@@ -151,7 +153,9 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                       ? '${snapshot.heartRate}'
                       : '--',
                   unit: 'BPM',
-                  subtext: isId ? 'Normal Istirahat' : 'Resting Rate',
+                  subtext: snapshot.heartRate != null
+                      ? (isId ? 'Normal Istirahat' : 'Resting Rate')
+                      : (isId ? 'Belum ada data' : 'No data'),
                 ),
               ),
             ],
@@ -168,9 +172,13 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                   iconColor: const Color(0xFF6366F1),
                   iconBg: const Color(0xFFEEF2FF),
                   label: isId ? 'Tidur' : 'Sleep',
-                  value: snapshot.formattedSleep,
+                  value: snapshot.sleepDuration > Duration.zero
+                      ? snapshot.formattedSleep
+                      : '--',
                   unit: '',
-                  subtext: isId ? 'Kualitas Baik' : 'Deep & REM',
+                  subtext: snapshot.sleepDuration > Duration.zero
+                      ? (isId ? 'Kualitas Baik' : 'Deep & REM')
+                      : (isId ? 'Belum ada data' : 'No data'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -185,7 +193,9 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                       ? '${snapshot.activeCalories.round()}'
                       : '--',
                   unit: 'kcal',
-                  subtext: isId ? 'Pembakaran Hari Ini' : 'Today\'s Burn',
+                  subtext: snapshot.activeCalories > 0
+                      ? (isId ? 'Pembakaran Hari Ini' : 'Today\'s Burn')
+                      : (isId ? 'Belum ada data' : 'No data'),
                 ),
               ),
             ],
@@ -196,28 +206,33 @@ class LiveHealthMetricsCard extends ConsumerWidget {
           // Footer info row
           Row(
             children: [
-              const Icon(
-                Icons.check_circle_outline_rounded,
-                color: Color(0xFF10B981),
+              Icon(
+                snapshot.isConnected
+                    ? Icons.check_circle_outline_rounded
+                    : Icons.info_outline_rounded,
+                color: snapshot.isConnected
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
                 size: 14,
               ),
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  snapshot.isDemo
+                  snapshot.isConnected
                       ? (isId
-                          ? 'Data Mi Fitness terkoneksi (Health Connect)'
-                          : 'Mi Fitness connected (Health Connect)')
-                      : (isId
                           ? 'Tersinkron: ${DateFormat('HH:mm').format(snapshot.lastSyncedAt)}'
-                          : 'Synced: ${DateFormat('HH:mm').format(snapshot.lastSyncedAt)}'),
+                          : 'Synced: ${DateFormat('HH:mm').format(snapshot.lastSyncedAt)}')
+                      : (snapshot.errorMessage ??
+                          (isId
+                              ? 'Izin Health Connect belum diberikan'
+                              : 'Health Connect permissions not granted')),
                   style: const TextStyle(
                     color: AppColors.textMuted,
                     fontSize: 11,
                   ),
                 ),
               ),
-              if (!snapshot.isConnected && !snapshot.isDemo)
+              if (!snapshot.isConnected)
                 TextButton(
                   onPressed: () => ref.read(healthSyncProvider.notifier).requestPermissions(),
                   style: TextButton.styleFrom(
@@ -226,7 +241,7 @@ class LiveHealthMetricsCard extends ConsumerWidget {
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
                   child: Text(
-                    isId ? 'Hubungkan' : 'Authorize',
+                    isId ? 'Beri Izin' : 'Authorize',
                     style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ),

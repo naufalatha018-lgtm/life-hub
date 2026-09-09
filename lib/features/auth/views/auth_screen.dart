@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../shell/main_adaptive_shell.dart';
 import '../providers/auth_provider.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -78,6 +79,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     return strings.passwordStrengthStrong;
   }
 
+  void _navigateToDashboard() {
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const MainAdaptiveShell()),
+      (route) => false,
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
@@ -91,20 +100,25 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     try {
       if (_isSignUp) {
-        await ref.read(authNotifierProvider.notifier).signUpLocal(
+        final otpStatus = await ref.read(authNotifierProvider.notifier).signUpLocal(
               email: email,
               password: password,
               displayName: name.isNotEmpty ? name : null,
             );
-        _startResendTimer();
-        setState(() {
-          _successMessage = 'Confirmation code generated. Please verify your email.';
-        });
+        if (otpStatus == 'otp_sent') {
+          _startResendTimer();
+          setState(() {
+            _successMessage = 'Kode konfirmasi telah dikirim ke email Anda. Silakan cek kotak masuk.';
+          });
+        } else {
+          _navigateToDashboard();
+        }
       } else {
         await ref.read(authNotifierProvider.notifier).signInLocal(
               email: email,
               password: password,
             );
+        _navigateToDashboard();
       }
     } on UnverifiedAccountException catch (e) {
       _startResendTimer();
@@ -135,6 +149,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     try {
       await notifier.verifyEmailOtp(email: email, code: code);
+      _navigateToDashboard();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -152,7 +167,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       _startResendTimer();
       setState(() {
         _errorMessage = null;
-        _successMessage = 'A fresh 6-digit confirmation code has been generated.';
+        _successMessage = 'Kode konfirmasi baru telah dikirimkan ke email Anda.';
       });
     } catch (e) {
       setState(() {
@@ -174,6 +189,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
     try {
       await ref.read(authNotifierProvider.notifier).signInGoogle();
+      _navigateToDashboard();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -230,6 +246,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
     try {
       await ref.read(authNotifierProvider.notifier).signInGuest();
+      _navigateToDashboard();
     } catch (e) {
       setState(() {
         _errorMessage = e.toString().replaceFirst('Exception: ', '');
@@ -325,7 +342,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   // --- OTP Verification View ---
   Widget _buildOtpVerificationView(AuthNotifier notifier, bool isLoading, strings) {
     final email = notifier.pendingVerificationEmail ?? '';
-    final code = notifier.lastSentVerificationCode ?? '';
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -377,33 +393,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
           ),
         ),
         const SizedBox(height: 20),
-
-        // Development/Demo Simulation Banner showing the code
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.primaryGlow,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            children: [
-              const Icon(Icons.info_outline_rounded, size: 18, color: AppColors.primary),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Demo: OTP Code is: $code',
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 16),
 
         // Error Banner
         if (_errorMessage != null) ...[

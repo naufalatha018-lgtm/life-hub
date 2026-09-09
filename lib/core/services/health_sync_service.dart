@@ -59,25 +59,16 @@ class HealthSnapshot {
     );
   }
 
-  static HealthSnapshot demo() {
-    return HealthSnapshot(
-      steps: 7420,
-      heartRate: 72,
-      sleepDuration: const Duration(hours: 7, minutes: 24),
-      activeCalories: 385,
-      lastSyncedAt: DateTime.now(),
-      isConnected: true,
-      isAvailable: true,
-      isDemo: true,
-    );
-  }
-
   static HealthSnapshot empty() {
     return HealthSnapshot(
       steps: 0,
+      heartRate: null,
+      sleepDuration: Duration.zero,
+      activeCalories: 0,
       lastSyncedAt: DateTime.now(),
       isConnected: false,
       isAvailable: false,
+      isDemo: false,
     );
   }
 }
@@ -96,10 +87,12 @@ class HealthSyncService {
     HealthDataType.STEPS,
     HealthDataType.HEART_RATE,
     HealthDataType.SLEEP_SESSION,
+    HealthDataType.SLEEP_ASLEEP,
     HealthDataType.ACTIVE_ENERGY_BURNED,
   ];
 
   static const List<HealthDataAccess> _permissions = [
+    HealthDataAccess.READ,
     HealthDataAccess.READ,
     HealthDataAccess.READ,
     HealthDataAccess.READ,
@@ -172,19 +165,20 @@ class HealthSyncService {
 
   /// Queries Health Connect for today's steps, latest heart rate,
   /// last night's sleep duration, and active calories.
-  Future<HealthSnapshot> fetchLatestMetrics({bool allowDemoFallback = true}) async {
+  /// Does NOT use fake mock/demo numbers.
+  Future<HealthSnapshot> fetchLatestMetrics() async {
     if (kIsWeb) {
-      return allowDemoFallback ? HealthSnapshot.demo() : HealthSnapshot.empty();
+      return HealthSnapshot.empty().copyWith(
+        errorMessage: 'Health Connect hanya didukung pada perangkat Android.',
+      );
     }
 
     await _ensureConfigured();
 
     final isAvailable = await isHealthConnectAvailable();
     if (!isAvailable) {
-      if (allowDemoFallback) {
-        return HealthSnapshot.demo().copyWith(isAvailable: false);
-      }
       return HealthSnapshot.empty().copyWith(
+        isAvailable: false,
         errorMessage: 'Health Connect belum terpasang di perangkat',
       );
     }
@@ -193,13 +187,9 @@ class HealthSyncService {
     if (!hasPerms) {
       final granted = await requestPermissions();
       if (!granted) {
-        if (allowDemoFallback) {
-          return HealthSnapshot.demo().copyWith(
-            isConnected: false,
-            errorMessage: 'Izin Health Connect belum diberikan',
-          );
-        }
         return HealthSnapshot.empty().copyWith(
+          isAvailable: true,
+          isConnected: false,
           errorMessage: 'Izin Health Connect belum diberikan',
         );
       }
@@ -208,7 +198,7 @@ class HealthSyncService {
     try {
       final now = DateTime.now();
       final startOfDay = DateTime(now.year, now.month, now.day);
-      final yesterdayEvening = startOfDay.subtract(const Duration(hours: 8));
+      final yesterdayEvening = startOfDay.subtract(const Duration(hours: 12));
 
       // 1. Total Steps today
       int steps = 0;
@@ -226,6 +216,7 @@ class HealthSyncService {
         types: [
           HealthDataType.HEART_RATE,
           HealthDataType.SLEEP_SESSION,
+          HealthDataType.SLEEP_ASLEEP,
           HealthDataType.ACTIVE_ENERGY_BURNED,
         ],
       );
@@ -244,7 +235,7 @@ class HealthSyncService {
               latestHeartRateTime = p.dateTo;
             }
           }
-        } else if (p.type == HealthDataType.SLEEP_SESSION) {
+        } else if (p.type == HealthDataType.SLEEP_SESSION || p.type == HealthDataType.SLEEP_ASLEEP) {
           final session = p.dateTo.difference(p.dateFrom);
           if (session > Duration.zero) {
             sleepDuration += session;
@@ -270,10 +261,11 @@ class HealthSyncService {
       );
     } catch (e) {
       debugPrint('[HealthSyncService] fetch error: $e');
-      if (allowDemoFallback) {
-        return HealthSnapshot.demo().copyWith(errorMessage: e.toString());
-      }
-      return HealthSnapshot.empty().copyWith(errorMessage: e.toString());
+      return HealthSnapshot.empty().copyWith(
+        isAvailable: true,
+        isConnected: false,
+        errorMessage: e.toString(),
+      );
     }
   }
 }

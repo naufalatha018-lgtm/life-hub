@@ -115,11 +115,6 @@ class DashboardView extends ConsumerWidget {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        _getGreeting(now, lang),
-                                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
                                         strings.dashboardTitle,
                                         style: const TextStyle(
                                           color: Colors.white,
@@ -329,20 +324,6 @@ class DashboardView extends ConsumerWidget {
         ],
       ),
     );
-  }
-
-  String _getGreeting(DateTime now, String lang) {
-    if (lang == 'id') {
-      if (now.hour < 12) return 'Selamat pagi 🌅';
-      if (now.hour < 15) return 'Selamat siang ☀️';
-      if (now.hour < 18) return 'Selamat sore 🌆';
-      return 'Selamat malam 🌙';
-    } else {
-      if (now.hour < 12) return 'Good morning 🌅';
-      if (now.hour < 15) return 'Good afternoon ☀️';
-      if (now.hour < 18) return 'Good evening 🌆';
-      return 'Good night 🌙';
-    }
   }
 }
 

@@ -79,32 +79,6 @@ class PinPadWidgetState extends State<PinPadWidget>
     }
   }
 
-  void _appendDigit(String digit) {
-    if (_controller.text.length < AppConstants.pinLength) {
-      HapticFeedback.lightImpact();
-      final newText = _controller.text + digit;
-      _controller.text = newText;
-      _onTextChanged(newText);
-    }
-  }
-
-  void _backspace() {
-    if (_controller.text.isNotEmpty) {
-      HapticFeedback.selectionClick();
-      final newText = _controller.text.substring(0, _controller.text.length - 1);
-      _controller.text = newText;
-      _onTextChanged(newText);
-    }
-  }
-
-  void _clear() {
-    if (_controller.text.isNotEmpty) {
-      HapticFeedback.selectionClick();
-      _controller.clear();
-      _onTextChanged('');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final enteredPin = _controller.text;
@@ -284,106 +258,8 @@ class PinPadWidgetState extends State<PinPadWidget>
                   textAlign: TextAlign.center,
                 ),
               ],
-              const SizedBox(height: 24),
-
-              // Soft keypad for zero-latency manual tapping
-              _buildKeypad(),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildKeypad() {
-    return Column(
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [_keyButton('1'), _keyButton('2'), _keyButton('3')],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [_keyButton('4'), _keyButton('5'), _keyButton('6')],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [_keyButton('7'), _keyButton('8'), _keyButton('9')],
-        ),
-        const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _actionButton(
-              icon: Icons.clear_all_rounded,
-              onTap: _clear,
-            ),
-            _keyButton('0'),
-            _actionButton(
-              icon: Icons.backspace_outlined,
-              onTap: _backspace,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _keyButton(String digit) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => _appendDigit(digit),
-        borderRadius: BorderRadius.circular(32),
-        child: Container(
-          width: 64,
-          height: 64,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.cardBorder),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x08000000),
-                blurRadius: 4,
-                offset: Offset(0, 2),
-              ),
-            ],
-          ),
-          alignment: Alignment.center,
-          child: Text(
-            digit,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _actionButton({
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(32),
-        child: Container(
-          width: 64,
-          height: 64,
-          decoration: const BoxDecoration(
-            color: Colors.transparent,
-            shape: BoxShape.circle,
-          ),
-          alignment: Alignment.center,
-          child: Icon(icon, color: AppColors.textSecondary, size: 22),
         ),
       ),
     );

@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:sqflite/sqflite.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/database/app_database.dart';
@@ -82,7 +82,19 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     }
   }
 
-  Future<String> signUpLocal({
+  void _triggerCloudSync() {
+    Future.microtask(() async {
+      try {
+        final db = await _db.database;
+        final res = await SupabaseService.instance.syncAllLocalToCloud(db);
+        debugPrint('Auto cloud sync: ${res.totalRecords} records synced (success: ${res.isSuccess})');
+      } catch (e) {
+        debugPrint('Auto cloud sync error: $e');
+      }
+    });
+  }
+
+  Future<String?> signUpLocal({
     required String email,
     required String password,
     String? displayName,
@@ -115,31 +127,102 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         salt: salt,
       );
 
-      // Generate 6-digit verification OTP
-      final random = Random.secure();
-      final verificationCode = (100000 + random.nextInt(900000)).toString();
-
       final now = DateTime.now();
-      final userId = 'usr_${now.microsecondsSinceEpoch}';
+      String userId = 'usr_${now.microsecondsSinceEpoch}';
+      bool needsOtp = false;
 
+      // 1. Try Supabase signUp if online
+      if (SupabaseService.instance.client != null) {
+        try {
+          final res = await SupabaseService.instance.signUpWithEmail(
+            email: cleanEmail,
+            password: cleanPass,
+            displayName: displayName?.trim(),
+          );
+          if (res?.user != null) {
+            userId = res!.user!.id;
+            if (res.session != null) {
+              // Auto-confirmed by Supabase (no OTP needed)
+              await db.insert('app_users', {
+                'id': userId,
+                'email': cleanEmail,
+                'display_name': displayName?.trim(),
+                'photo_url': null,
+                'auth_provider': 'supabase',
+                'password_hash': passwordHash,
+                'salt': base64Encode(salt),
+                'is_verified': 1,
+                'verification_code': null,
+                'created_at': now.millisecondsSinceEpoch,
+                'last_login_at': now.millisecondsSinceEpoch,
+              }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+              final user = AppUser(
+                id: userId,
+                email: cleanEmail,
+                displayName: displayName?.trim(),
+                authProvider: 'supabase',
+                isVerified: true,
+                createdAt: now,
+                lastLoginAt: now,
+              );
+              await _storage.write(key: _sessionKey, value: user.id);
+              _pendingVerificationEmail = null;
+              _lastSentVerificationCode = null;
+              state = AsyncValue.data(user);
+              _triggerCloudSync();
+              return null;
+            } else {
+              // Requires real OTP email confirmation from Supabase
+              needsOtp = true;
+            }
+          }
+        } catch (e) {
+          debugPrint('Supabase signUp error: $e');
+          if (e is AuthException) {
+            state = const AsyncValue.data(null);
+            rethrow;
+          }
+        }
+      }
+
+      // Save local user record
       await db.insert('app_users', {
         'id': userId,
         'email': cleanEmail,
         'display_name': displayName?.trim(),
         'photo_url': null,
-        'auth_provider': 'local',
+        'auth_provider': needsOtp ? 'supabase' : 'local',
         'password_hash': passwordHash,
         'salt': base64Encode(salt),
-        'is_verified': 0,
-        'verification_code': verificationCode,
+        'is_verified': needsOtp ? 0 : 1,
+        'verification_code': null,
         'created_at': now.millisecondsSinceEpoch,
         'last_login_at': now.millisecondsSinceEpoch,
-      });
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
 
-      _pendingVerificationEmail = cleanEmail;
-      _lastSentVerificationCode = verificationCode;
-      state = const AsyncValue.data(null);
-      return verificationCode;
+      if (needsOtp) {
+        _pendingVerificationEmail = cleanEmail;
+        _lastSentVerificationCode = null;
+        state = const AsyncValue.data(null);
+        return 'otp_sent';
+      } else {
+        final user = AppUser(
+          id: userId,
+          email: cleanEmail,
+          displayName: displayName?.trim(),
+          authProvider: 'local',
+          isVerified: true,
+          createdAt: now,
+          lastLoginAt: now,
+        );
+        await _storage.write(key: _sessionKey, value: user.id);
+        _pendingVerificationEmail = null;
+        _lastSentVerificationCode = null;
+        state = AsyncValue.data(user);
+        _triggerCloudSync();
+        return null;
+      }
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -154,7 +237,54 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     try {
       final cleanEmail = email.trim().toLowerCase();
       final cleanPass = password.trim();
+      final now = DateTime.now();
 
+      // 1. Try Supabase Auth first
+      if (SupabaseService.instance.client != null) {
+        try {
+          final res = await SupabaseService.instance.signInWithEmail(
+            email: cleanEmail,
+            password: cleanPass,
+          );
+          if (res != null && res.user != null) {
+            final uid = res.user!.id;
+            final db = await _db.database;
+            await db.insert('app_users', {
+              'id': uid,
+              'email': cleanEmail,
+              'display_name': res.user!.userMetadata?['display_name'] as String?,
+              'photo_url': null,
+              'auth_provider': 'supabase',
+              'is_verified': 1,
+              'created_at': now.millisecondsSinceEpoch,
+              'last_login_at': now.millisecondsSinceEpoch,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+            final user = AppUser(
+              id: uid,
+              email: cleanEmail,
+              displayName: res.user!.userMetadata?['display_name'] as String?,
+              authProvider: 'supabase',
+              isVerified: true,
+              createdAt: now,
+              lastLoginAt: now,
+            );
+            await _storage.write(key: _sessionKey, value: user.id);
+            _pendingVerificationEmail = null;
+            _lastSentVerificationCode = null;
+            state = AsyncValue.data(user);
+            _triggerCloudSync();
+            return;
+          }
+        } catch (e) {
+          debugPrint('Supabase signInWithEmail: $e');
+          if (e is AuthException) {
+            rethrow;
+          }
+        }
+      }
+
+      // 2. Offline / Local SQLite verification fallback
       final db = await _db.database;
       final rows = await db.query(
         'app_users',
@@ -185,29 +315,6 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         throw Exception('Incorrect password. Please try again.');
       }
 
-      final isVerified = ((row['is_verified'] as num?)?.toInt() ?? 1) == 1;
-      if (!isVerified) {
-        _pendingVerificationEmail = cleanEmail;
-        var code = row['verification_code'] as String?;
-        if (code == null || code.isEmpty) {
-          final random = Random.secure();
-          code = (100000 + random.nextInt(900000)).toString();
-          await db.update(
-            'app_users',
-            {'verification_code': code},
-            where: 'id = ?',
-            whereArgs: [row['id']],
-          );
-        }
-        _lastSentVerificationCode = code;
-        state = const AsyncValue.data(null);
-        throw UnverifiedAccountException(
-          'Your account requires email verification. Please enter your 6-digit confirmation code.',
-          cleanEmail,
-        );
-      }
-
-      final now = DateTime.now();
       await db.update(
         'app_users',
         {'last_login_at': now.millisecondsSinceEpoch},
@@ -220,6 +327,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       _pendingVerificationEmail = null;
       _lastSentVerificationCode = null;
       state = AsyncValue.data(user);
+      _triggerCloudSync();
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -234,7 +342,55 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
     try {
       final cleanEmail = email.trim().toLowerCase();
       final cleanCode = code.trim();
+      final now = DateTime.now();
 
+      // 1. Try Supabase verifyOTP
+      if (SupabaseService.instance.client != null) {
+        try {
+          final res = await SupabaseService.instance.verifyOtp(
+            email: cleanEmail,
+            token: cleanCode,
+            type: OtpType.signup,
+          );
+          if (res != null && res.user != null) {
+            final uid = res.user!.id;
+            final db = await _db.database;
+            await db.insert('app_users', {
+              'id': uid,
+              'email': cleanEmail,
+              'display_name': res.user!.userMetadata?['display_name'] as String?,
+              'photo_url': null,
+              'auth_provider': 'supabase',
+              'is_verified': 1,
+              'created_at': now.millisecondsSinceEpoch,
+              'last_login_at': now.millisecondsSinceEpoch,
+            }, conflictAlgorithm: ConflictAlgorithm.replace);
+
+            final user = AppUser(
+              id: uid,
+              email: cleanEmail,
+              displayName: res.user!.userMetadata?['display_name'] as String?,
+              authProvider: 'supabase',
+              isVerified: true,
+              createdAt: now,
+              lastLoginAt: now,
+            );
+            await _storage.write(key: _sessionKey, value: user.id);
+            _pendingVerificationEmail = null;
+            _lastSentVerificationCode = null;
+            state = AsyncValue.data(user);
+            _triggerCloudSync();
+            return;
+          }
+        } catch (e) {
+          debugPrint('Supabase verifyOtp error: $e');
+          if (e is AuthException) {
+            rethrow;
+          }
+        }
+      }
+
+      // 2. Offline fallback (if any stored code matches)
       final db = await _db.database;
       final rows = await db.query(
         'app_users',
@@ -249,68 +405,47 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 
       final row = rows.first;
       final storedCode = row['verification_code'] as String?;
-
-      if (storedCode == null || storedCode != cleanCode) {
-        throw Exception('Invalid verification code. Please check and try again.');
+      if (storedCode != null && storedCode == cleanCode) {
+        await db.update(
+          'app_users',
+          {
+            'is_verified': 1,
+            'verification_code': null,
+            'last_login_at': now.millisecondsSinceEpoch,
+          },
+          where: 'id = ?',
+          whereArgs: [row['id']],
+        );
+        final user = AppUser.fromMap(row).copyWith(
+          isVerified: true,
+          lastLoginAt: now,
+        );
+        await _storage.write(key: _sessionKey, value: user.id);
+        _pendingVerificationEmail = null;
+        _lastSentVerificationCode = null;
+        state = AsyncValue.data(user);
+        _triggerCloudSync();
+        return;
       }
 
-      final now = DateTime.now();
-      await db.update(
-        'app_users',
-        {
-          'is_verified': 1,
-          'verification_code': null,
-          'last_login_at': now.millisecondsSinceEpoch,
-        },
-        where: 'id = ?',
-        whereArgs: [row['id']],
-      );
-
-      final updatedRow = await db.query(
-        'app_users',
-        where: 'id = ?',
-        whereArgs: [row['id']],
-        limit: 1,
-      );
-
-      final user = AppUser.fromMap(updatedRow.first);
-      await _storage.write(key: _sessionKey, value: user.id);
-      _pendingVerificationEmail = null;
-      _lastSentVerificationCode = null;
-      state = AsyncValue.data(user);
+      throw Exception('Kode verifikasi tidak valid. Silakan periksa kembali.');
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 
-  Future<String> resendVerificationOtp(String email) async {
+  Future<void> resendVerificationOtp(String email) async {
     final cleanEmail = email.trim().toLowerCase();
-    final db = await _db.database;
-    final rows = await db.query(
-      'app_users',
-      where: 'email = ?',
-      whereArgs: [cleanEmail],
-      limit: 1,
-    );
-
-    if (rows.isEmpty) {
-      throw Exception('Account not found.');
+    if (SupabaseService.instance.client != null) {
+      try {
+        await SupabaseService.instance.resendOtp(email: cleanEmail, type: OtpType.signup);
+      } catch (e) {
+        debugPrint('Supabase resendOtp error: $e');
+      }
     }
-
-    final random = Random.secure();
-    final newCode = (100000 + random.nextInt(900000)).toString();
-
-    await db.update(
-      'app_users',
-      {'verification_code': newCode},
-      where: 'email = ?',
-      whereArgs: [cleanEmail],
-    );
-
     _pendingVerificationEmail = cleanEmail;
-    _lastSentVerificationCode = newCode;
-    return newCode;
+    _lastSentVerificationCode = null;
   }
 
   void cancelVerification() {
@@ -336,16 +471,29 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       );
       final account = await googleSignIn.authenticate();
 
-      // Synchronize with Supabase Cloud Authentication if online
+      // Retrieve both idToken and accessToken
       final idToken = account.authentication.idToken;
+      String? accessToken;
+      try {
+        final authz = await account.authorizationClient.authorizationForScopes(['email', 'profile']);
+        accessToken = authz?.accessToken;
+      } catch (e) {
+        debugPrint('Google accessToken retrieval error: $e');
+      }
+
+      String? supabaseUserId;
+      // Synchronize with Supabase Cloud Authentication if online
       if (idToken != null && SupabaseService.instance.client != null) {
         try {
-          await SupabaseService.instance.client!.auth.signInWithIdToken(
+          final authRes = await SupabaseService.instance.client!.auth.signInWithIdToken(
             provider: OAuthProvider.google,
             idToken: idToken,
+            accessToken: accessToken,
           );
+          supabaseUserId = authRes.user?.id;
+          debugPrint('Supabase Google Sign-In session established: $supabaseUserId');
         } catch (e) {
-          debugPrint('Supabase Google Sign-In link error (non-fatal): $e');
+          debugPrint('Supabase Google Sign-In link error: $e');
         }
       }
 
@@ -363,9 +511,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 
       if (existing.isNotEmpty) {
         final row = existing.first;
+        final targetId = supabaseUserId ?? row['id'] as String;
         await db.update(
           'app_users',
           {
+            'id': targetId,
             'display_name': account.displayName,
             'photo_url': account.photoUrl,
             'is_verified': 1,
@@ -375,13 +525,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
           whereArgs: [row['id']],
         );
         user = AppUser.fromMap(row).copyWith(
+          id: targetId,
           displayName: account.displayName,
           photoUrl: account.photoUrl,
           isVerified: true,
           lastLoginAt: now,
         );
       } else {
-        final userId = 'usr_${now.microsecondsSinceEpoch}';
+        final userId = supabaseUserId ?? 'usr_${now.microsecondsSinceEpoch}';
         user = AppUser(
           id: userId,
           email: email,
@@ -404,13 +555,14 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
           'verification_code': null,
           'created_at': user.createdAt.millisecondsSinceEpoch,
           'last_login_at': user.lastLoginAt.millisecondsSinceEpoch,
-        });
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
       }
 
       await _storage.write(key: _sessionKey, value: user.id);
       _pendingVerificationEmail = null;
       _lastSentVerificationCode = null;
       state = AsyncValue.data(user);
+      _triggerCloudSync();
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;

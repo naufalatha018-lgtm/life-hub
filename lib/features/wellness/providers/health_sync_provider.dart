@@ -11,7 +11,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSnapshot>> {
 
   Future<void> refresh() async {
     try {
-      final snapshot = await _service.fetchLatestMetrics(allowDemoFallback: true);
+      final snapshot = await _service.fetchLatestMetrics();
       state = AsyncValue.data(snapshot);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -22,7 +22,7 @@ class HealthSyncNotifier extends StateNotifier<AsyncValue<HealthSnapshot>> {
     state = const AsyncValue.loading();
     try {
       HapticFeedback.mediumImpact();
-      final snapshot = await _service.fetchLatestMetrics(allowDemoFallback: true);
+      final snapshot = await _service.fetchLatestMetrics();
       state = AsyncValue.data(snapshot);
       HapticFeedback.lightImpact();
     } catch (e, st) {

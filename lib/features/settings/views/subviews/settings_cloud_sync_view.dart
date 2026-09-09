@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../core/localization/locale_provider.dart';
 import '../../../../core/services/supabase_service.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -196,15 +197,20 @@ class SettingsCloudSyncView extends ConsumerWidget {
     ref.read(_syncLoadingProvider.notifier).state = true;
     ref.read(_syncStatusProvider.notifier).state = null;
 
-    // Simulate a sync operation — in a full implementation this would call
-    // SyncService.syncAll() which pushes local SQLite data to Supabase
-    await Future.delayed(const Duration(seconds: 2));
+    final db = await AppDatabase.instance.database;
+    final result = await SupabaseService.instance.syncAllLocalToCloud(db);
 
-    final success = SupabaseService.instance.isSignedIn;
     ref.read(_syncLoadingProvider.notifier).state = false;
-    ref.read(_syncSuccessProvider.notifier).state = success;
-    ref.read(_syncStatusProvider.notifier).state =
-        success ? strings.cloudSyncSuccess : strings.cloudSyncError;
+    ref.read(_syncSuccessProvider.notifier).state = result.isSuccess;
+    if (result.isSuccess) {
+      final isId = ref.read(localeProvider).code == 'id';
+      ref.read(_syncStatusProvider.notifier).state = isId
+          ? 'Berhasil menyinkronkan ${result.totalRecords} data ke Supabase Cloud.'
+          : 'Successfully synced ${result.totalRecords} records to Supabase Cloud.';
+    } else {
+      ref.read(_syncStatusProvider.notifier).state =
+          result.errorMessage ?? strings.cloudSyncError;
+    }
   }
 
   Widget _buildSyncScopeCard(ThemeData theme, WidgetRef ref) {
