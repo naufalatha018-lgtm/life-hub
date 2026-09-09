@@ -1,0 +1,86 @@
+name: life_hub
+description: "Life OS — Personal Operating System. Finance, Tasks, Vault, Habits, Focus & Wellness in one private, offline-first app with AI-powered insights and cloud sync."
+publish_to: 'none'
+
+version: 3.0.0+1
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Core UI
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+
+  # Security & Crypto
+  flutter_secure_storage: ^9.2.4
+  cryptography: ^2.7.2
+  crypto: ^3.0.6
+  local_auth: ^2.3.0
+
+  # Database (Local SQLite — offline-first)
+  sqflite: ^2.4.2
+  sqflite_common: ^2.5.11
+  sqflite_common_ffi: ^2.3.4+4
+  sqlite3_flutter_libs: ^0.5.24
+  sqflite_common_ffi_web: ^1.1.2
+
+  # Cloud Backend (Supabase — optional, offline fallback)
+  supabase_flutter: ^2.8.4
+
+  # AI (Gemini — BYOK, optional)
+  google_generative_ai: ^0.4.6
+
+  # File System & Networking
+  path_provider: ^2.1.5
+  path: ^1.9.0
+  http: ^1.3.0
+  file_picker: ^11.0.3
+  open_file_plus: ^3.4.1+1
+
+  # Localization & Formatting
+  intl: ^0.20.2
+
+  # Charts & Visualization
+  fl_chart: ^1.2.0
+
+  # Map & Location
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
+  geolocator: ^13.0.2
+
+  # Auth
+  google_sign_in: ^7.2.0
+
+  # Notifications (Local, on-demand permission)
+  flutter_local_notifications: ^18.0.0
+  timezone: ^0.9.4
+
+  # Markdown rendering
+  flutter_markdown: ^0.7.6+2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: false
+  image_path: "assets/branding/app_icon.png"
+  windows:
+    generate: true
+    image_path: "assets/branding/app_icon.png"
+    icon_size: 256
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/
