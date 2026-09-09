@@ -42,12 +42,12 @@ void main() {
           authNotifierProvider.overrideWith((ref) => MockAuthNotifier(null)),
           localeProvider.overrideWith((ref) => MockLocaleNotifier(AppLanguage.id)),
         ],
-        child: const LifeHubApp(),
+        child: const LifeOsApp(),
       ),
     );
     await tester.pump();
 
-    expect(find.text('Life Hub'), findsOneWidget);
+    expect(find.text('Life OS'), findsOneWidget);
     expect(find.text('Masuk'), findsWidgets);
   });
 
@@ -76,7 +76,7 @@ void main() {
           localeProvider
               .overrideWith((ref) => MockLocaleNotifier(AppLanguage.id)),
         ],
-        child: const LifeHubApp(),
+        child: const LifeOsApp(),
       ),
     );
     await tester.pump();
@@ -112,7 +112,7 @@ void main() {
           authNotifierProvider.overrideWith((ref) => MockAuthNotifier(mockUser)),
           localeProvider.overrideWith((ref) => MockLocaleNotifier(AppLanguage.en)),
         ],
-        child: const LifeHubApp(),
+        child: const LifeOsApp(),
       ),
     );
     await tester.pump();

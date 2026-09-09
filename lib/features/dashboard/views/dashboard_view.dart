@@ -559,7 +559,7 @@ class _SectionHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (action != null) action!,
+        ?action,
       ],
     );
   }
