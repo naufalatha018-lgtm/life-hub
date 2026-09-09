@@ -205,27 +205,32 @@ class SupabaseService {
   }
 
   /// Synchronizes local SQLite tables (wallets, finance_transactions, tasks, habits)
-  /// directly to Supabase cloud tables for the authenticated user.
-  Future<CloudSyncResult> syncAllLocalToCloud(Database db) async {
-    if (client == null || userId == null) {
+  /// directly to Supabase cloud tables for the authenticated user, and pulls down
+  /// cloud records for the current user.
+  Future<CloudSyncResult> syncAllLocalToCloud(Database db, [String? explicitUserId]) async {
+    final uid = explicitUserId ?? userId;
+    if (client == null || uid == null) {
       return const CloudSyncResult(
         isSuccess: false,
         errorMessage: 'Koneksi Supabase belum aktif atau sesi belum masuk.',
       );
     }
 
-    final uid = userId!;
     int walletsCount = 0;
     int txnCount = 0;
     int tasksCount = 0;
     int habitsCount = 0;
 
     try {
-      // 1. Wallets Sync
-      final localWallets = await db.query('wallets');
+      // 1. Wallets Upload (strictly user-scoped)
+      final localWallets = await db.query(
+        'wallets',
+        where: 'user_id = ?',
+        whereArgs: [uid],
+      );
       for (final w in localWallets) {
         final cloudWallet = {
-          'id': deterministicUuid(w['id'] as String),
+          'id': deterministicUuid('${uid}_${w['id']}'),
           'user_id': uid,
           'name': w['name'],
           'balance_cents': w['balance_cents'] ?? 0,
@@ -238,14 +243,18 @@ class SupabaseService {
         walletsCount++;
       }
 
-      // 2. Finance Transactions Sync
-      final localTxns = await db.query('finance_transactions');
+      // 2. Finance Transactions Upload (strictly user-scoped)
+      final localTxns = await db.query(
+        'finance_transactions',
+        where: 'user_id = ?',
+        whereArgs: [uid],
+      );
       for (final t in localTxns) {
         final rawWalletId = t['wallet_id'] as String?;
         final cloudTxn = {
-          'id': deterministicUuid(t['id'] as String),
+          'id': deterministicUuid('${uid}_${t['id']}'),
           'user_id': uid,
-          'wallet_id': rawWalletId != null ? deterministicUuid(rawWalletId) : null,
+          'wallet_id': rawWalletId != null ? deterministicUuid('${uid}_$rawWalletId') : null,
           'amount_cents': t['amount_cents'] ?? 0,
           'type': t['type'],
           'category': t['category'] ?? 'Other',
@@ -263,16 +272,20 @@ class SupabaseService {
         txnCount++;
       }
 
-      // 3. Tasks Sync
-      final localTasks = await db.query('tasks');
+      // 3. Tasks Upload (strictly user-scoped)
+      final localTasks = await db.query(
+        'tasks',
+        where: 'user_id = ?',
+        whereArgs: [uid],
+      );
       for (final tk in localTasks) {
         final rawDueDate = tk['due_date'] as int?;
         final cloudTask = {
-          'id': deterministicUuid(tk['id'] as String),
+          'id': deterministicUuid('${uid}_${tk['id']}'),
           'user_id': uid,
           'title': tk['title'],
           'description': tk['description'],
-          'is_completed': (tk['status'] == 'completed'),
+          'is_completed': (tk['status'] == 'completed' || tk['status'] == 'done'),
           'priority': (tk['priority'] ?? 'medium').toString().toLowerCase(),
           'due_date': rawDueDate != null
               ? DateTime.fromMillisecondsSinceEpoch(rawDueDate).toIso8601String().split('T')[0]
@@ -285,11 +298,15 @@ class SupabaseService {
         tasksCount++;
       }
 
-      // 4. Habits Sync
-      final localHabits = await db.query('habits');
+      // 4. Habits Upload (strictly user-scoped)
+      final localHabits = await db.query(
+        'habits',
+        where: 'user_id = ?',
+        whereArgs: [uid],
+      );
       for (final h in localHabits) {
         final cloudHabit = {
-          'id': deterministicUuid(h['id'] as String),
+          'id': deterministicUuid('${uid}_${h['id']}'),
           'user_id': uid,
           'title': h['title'],
           'frequency': (h['frequency'] ?? 'daily').toString().toLowerCase(),
@@ -301,6 +318,89 @@ class SupabaseService {
         };
         await client!.from('habits').upsert(cloudHabit);
         habitsCount++;
+      }
+
+      // ── PULL DOWN FROM SUPABASE INTO LOCAL SQLITE (user-scoped) ─────────────
+      try {
+        final remoteWallets = await client!.from('wallets').select().eq('user_id', uid);
+        for (final rw in remoteWallets) {
+          final rawCreated = rw['created_at'] != null ? DateTime.tryParse(rw['created_at'])?.millisecondsSinceEpoch : null;
+          await db.insert('wallets', {
+            'id': rw['id'],
+            'user_id': uid,
+            'name': rw['name'] ?? 'Rekening Utama',
+            'balance_cents': rw['balance_cents'] ?? 0,
+            'is_default': (rw['is_default'] == true) ? 1 : 0,
+            'created_at': rawCreated ?? DateTime.now().millisecondsSinceEpoch,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      } catch (e) {
+        debugPrint('SupabaseService pull remote wallets: $e');
+      }
+
+      try {
+        final remoteTxns = await client!.from('finance_transactions').select().eq('user_id', uid);
+        for (final rt in remoteTxns) {
+          final rawDate = rt['date'] != null ? DateTime.tryParse(rt['date'])?.millisecondsSinceEpoch : null;
+          final rawCreated = rt['created_at'] != null ? DateTime.tryParse(rt['created_at'])?.millisecondsSinceEpoch : null;
+          await db.insert('finance_transactions', {
+            'id': rt['id'],
+            'user_id': uid,
+            'wallet_id': rt['wallet_id'],
+            'title': rt['description'] ?? rt['category'] ?? 'Transaksi',
+            'amount_cents': rt['amount_cents'] ?? 0,
+            'type': rt['type'] ?? 'expense',
+            'category': rt['category'] ?? 'Other',
+            'timestamp': rawDate ?? rawCreated ?? DateTime.now().millisecondsSinceEpoch,
+            'note': rt['description'],
+            'created_at': rawCreated ?? DateTime.now().millisecondsSinceEpoch,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      } catch (e) {
+        debugPrint('SupabaseService pull remote txns: $e');
+      }
+
+      try {
+        final remoteTasks = await client!.from('tasks').select().eq('user_id', uid);
+        for (final rtk in remoteTasks) {
+          final rawDue = rtk['due_date'] != null ? DateTime.tryParse(rtk['due_date'])?.millisecondsSinceEpoch : null;
+          final rawCreated = rtk['created_at'] != null ? DateTime.tryParse(rtk['created_at'])?.millisecondsSinceEpoch : null;
+          await db.insert('tasks', {
+            'id': rtk['id'],
+            'user_id': uid,
+            'title': rtk['title'] ?? 'Tugas',
+            'description': rtk['description'],
+            'status': (rtk['is_completed'] == true) ? 'done' : 'todo',
+            'priority': rtk['priority'] ?? 'medium',
+            'category': 'General',
+            'due_date': rawDue,
+            'created_at': rawCreated ?? DateTime.now().millisecondsSinceEpoch,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      } catch (e) {
+        debugPrint('SupabaseService pull remote tasks: $e');
+      }
+
+      try {
+        final remoteHabits = await client!.from('habits').select().eq('user_id', uid);
+        for (final rh in remoteHabits) {
+          final rawCreated = rh['created_at'] != null ? DateTime.tryParse(rh['created_at'])?.millisecondsSinceEpoch : null;
+          await db.insert('habits', {
+            'id': rh['id'],
+            'user_id': uid,
+            'title': rh['title'] ?? 'Kebiasaan',
+            'frequency': rh['frequency'] ?? 'daily',
+            'category': rh['category'] ?? 'productivity',
+            'streak_current': rh['streak_current'] ?? 0,
+            'created_at': rawCreated ?? DateTime.now().millisecondsSinceEpoch,
+            'updated_at': DateTime.now().millisecondsSinceEpoch,
+          }, conflictAlgorithm: ConflictAlgorithm.replace);
+        }
+      } catch (e) {
+        debugPrint('SupabaseService pull remote habits: $e');
       }
 
       return CloudSyncResult(

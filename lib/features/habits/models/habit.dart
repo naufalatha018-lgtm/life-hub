@@ -60,6 +60,7 @@ enum HabitCategory {
 class Habit {
   const Habit({
     required this.id,
+    this.userId,
     required this.title,
     this.description,
     required this.frequency,
@@ -73,6 +74,7 @@ class Habit {
   });
 
   final String id;
+  final String? userId;
   final String title;
   final String? description;
   final HabitFrequency frequency;
@@ -86,6 +88,7 @@ class Habit {
 
   Habit copyWith({
     String? id,
+    String? userId,
     String? title,
     String? description,
     HabitFrequency? frequency,
@@ -99,6 +102,7 @@ class Habit {
   }) {
     return Habit(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       description: description ?? this.description,
       frequency: frequency ?? this.frequency,
@@ -115,6 +119,7 @@ class Habit {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      if (userId != null) 'user_id': userId,
       'title': title,
       'description': description,
       'frequency': frequency.name,
@@ -131,6 +136,7 @@ class Habit {
   factory Habit.fromMap(Map<String, dynamic> map) {
     return Habit(
       id: map['id'] as String,
+      userId: map['user_id'] as String?,
       title: map['title'] as String,
       description: map['description'] as String?,
       frequency: HabitFrequency.values.firstWhere(
@@ -166,12 +172,14 @@ class Habit {
 class HabitCompletion {
   const HabitCompletion({
     required this.id,
+    this.userId,
     required this.habitId,
     required this.completedDate,
     required this.createdAt,
   });
 
   final String id;
+  final String? userId;
   final String habitId;
   final DateTime completedDate;
   final DateTime createdAt;
@@ -179,6 +187,7 @@ class HabitCompletion {
   factory HabitCompletion.fromMap(Map<String, dynamic> map) {
     return HabitCompletion(
       id: map['id'] as String,
+      userId: map['user_id'] as String?,
       habitId: map['habit_id'] as String,
       completedDate: DateTime.fromMillisecondsSinceEpoch((map['completed_date'] as num).toInt()),
       createdAt: DateTime.fromMillisecondsSinceEpoch((map['created_at'] as num).toInt()),

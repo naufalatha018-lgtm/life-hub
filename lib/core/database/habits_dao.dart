@@ -3,13 +3,19 @@ import 'app_database.dart';
 /// Repository-style DAO for Habits and HabitCompletions.
 /// Handles CRUD, streak calculation, and daily completion state.
 class HabitsDao {
-  Future<List<Map<String, dynamic>>> getActiveHabits() async {
+  Future<List<Map<String, dynamic>>> getActiveHabits([String? userId]) async {
     final db = await AppDatabase.instance.database;
+    if (userId != null) {
+      return db.query('habits', where: 'is_active = 1 AND user_id = ?', whereArgs: [userId], orderBy: 'created_at ASC');
+    }
     return db.query('habits', where: 'is_active = 1', orderBy: 'created_at ASC');
   }
 
-  Future<List<Map<String, dynamic>>> getAllHabits() async {
+  Future<List<Map<String, dynamic>>> getAllHabits([String? userId]) async {
     final db = await AppDatabase.instance.database;
+    if (userId != null) {
+      return db.query('habits', where: 'user_id = ?', whereArgs: [userId], orderBy: 'created_at ASC');
+    }
     return db.query('habits', orderBy: 'created_at ASC');
   }
 
@@ -40,21 +46,28 @@ class HabitsDao {
   }
 
   /// Record a completion for today. Returns true if inserted, false if already done.
-  Future<bool> toggleCompletion(String habitId, DateTime date) async {
+  Future<bool> toggleCompletion(String habitId, DateTime date, [String? userId]) async {
     final db = await AppDatabase.instance.database;
     final dayStart = _dayStart(date);
+    final where = userId != null
+        ? 'habit_id = ? AND user_id = ? AND completed_date >= ? AND completed_date < ?'
+        : 'habit_id = ? AND completed_date >= ? AND completed_date < ?';
+    final whereArgs = userId != null
+        ? [habitId, userId, dayStart, dayStart + 86400000]
+        : [habitId, dayStart, dayStart + 86400000];
+
     final existing = await db.query(
       'habit_completions',
-      where: 'habit_id = ? AND completed_date >= ? AND completed_date < ?',
-      whereArgs: [habitId, dayStart, dayStart + 86400000],
+      where: where,
+      whereArgs: whereArgs,
     );
 
     if (existing.isNotEmpty) {
       // Remove completion (toggle off)
       await db.delete(
         'habit_completions',
-        where: 'habit_id = ? AND completed_date >= ? AND completed_date < ?',
-        whereArgs: [habitId, dayStart, dayStart + 86400000],
+        where: where,
+        whereArgs: whereArgs,
       );
       return false;
     } else {
@@ -62,6 +75,7 @@ class HabitsDao {
       final now = DateTime.now().millisecondsSinceEpoch;
       await db.insert('habit_completions', {
         'id': 'hc_${now}_$habitId',
+        'user_id': ?userId,
         'habit_id': habitId,
         'completed_date': dayStart,
         'created_at': now,
@@ -71,25 +85,35 @@ class HabitsDao {
   }
 
   /// Get completions for the last [days] days for a specific habit.
-  Future<List<Map<String, dynamic>>> getCompletionsForHabit(String habitId, {int days = 7}) async {
+  Future<List<Map<String, dynamic>>> getCompletionsForHabit(String habitId, {int days = 7, String? userId}) async {
     final db = await AppDatabase.instance.database;
     final cutoff = _dayStart(DateTime.now().subtract(Duration(days: days)));
+    final where = userId != null
+        ? 'habit_id = ? AND user_id = ? AND completed_date >= ?'
+        : 'habit_id = ? AND completed_date >= ?';
+    final whereArgs = userId != null ? [habitId, userId, cutoff] : [habitId, cutoff];
     return db.query(
       'habit_completions',
-      where: 'habit_id = ? AND completed_date >= ?',
-      whereArgs: [habitId, cutoff],
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'completed_date DESC',
     );
   }
 
   /// Check if a habit was completed today.
-  Future<bool> isCompletedToday(String habitId) async {
+  Future<bool> isCompletedToday(String habitId, [String? userId]) async {
     final db = await AppDatabase.instance.database;
     final dayStart = _dayStart(DateTime.now());
+    final where = userId != null
+        ? 'habit_id = ? AND user_id = ? AND completed_date >= ? AND completed_date < ?'
+        : 'habit_id = ? AND completed_date >= ? AND completed_date < ?';
+    final whereArgs = userId != null
+        ? [habitId, userId, dayStart, dayStart + 86400000]
+        : [habitId, dayStart, dayStart + 86400000];
     final result = await db.query(
       'habit_completions',
-      where: 'habit_id = ? AND completed_date >= ? AND completed_date < ?',
-      whereArgs: [habitId, dayStart, dayStart + 86400000],
+      where: where,
+      whereArgs: whereArgs,
     );
     return result.isNotEmpty;
   }
@@ -110,12 +134,14 @@ class HabitsDao {
   }
 
   /// Get all completions (for streak recalculation).
-  Future<List<Map<String, dynamic>>> getAllCompletionsForHabit(String habitId) async {
+  Future<List<Map<String, dynamic>>> getAllCompletionsForHabit(String habitId, [String? userId]) async {
     final db = await AppDatabase.instance.database;
+    final where = userId != null ? 'habit_id = ? AND user_id = ?' : 'habit_id = ?';
+    final whereArgs = userId != null ? [habitId, userId] : [habitId];
     return db.query(
       'habit_completions',
-      where: 'habit_id = ?',
-      whereArgs: [habitId],
+      where: where,
+      whereArgs: whereArgs,
       orderBy: 'completed_date DESC',
     );
   }

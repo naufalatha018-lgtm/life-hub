@@ -13,6 +13,8 @@ enum TransactionType {
 class FinanceTransaction {
   const FinanceTransaction({
     required this.id,
+    this.userId,
+    this.walletId,
     required this.title,
     required this.amountCents,
     required this.type,
@@ -28,6 +30,8 @@ class FinanceTransaction {
   });
 
   final String id;
+  final String? userId;
+  final String? walletId;
   final String title;
   final int amountCents; // Smallest integer unit (e.g., $10.50 -> 1050)
   final TransactionType type;
@@ -56,6 +60,8 @@ class FinanceTransaction {
 
   FinanceTransaction copyWith({
     String? id,
+    String? userId,
+    String? walletId,
     String? title,
     int? amountCents,
     TransactionType? type,
@@ -71,6 +77,8 @@ class FinanceTransaction {
   }) {
     return FinanceTransaction(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
+      walletId: walletId ?? this.walletId,
       title: title ?? this.title,
       amountCents: amountCents ?? this.amountCents,
       type: type ?? this.type,
@@ -89,6 +97,8 @@ class FinanceTransaction {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      if (userId != null) 'user_id': userId,
+      if (walletId != null) 'wallet_id': walletId,
       'title': title,
       'amount_cents': amountCents,
       'type': type.name,
@@ -107,6 +117,8 @@ class FinanceTransaction {
   factory FinanceTransaction.fromMap(Map<String, dynamic> map) {
     return FinanceTransaction(
       id: map['id'] as String,
+      userId: map['user_id'] as String?,
+      walletId: map['wallet_id'] as String?,
       title: map['title'] as String,
       amountCents: (map['amount_cents'] as num).toInt(),
       type: (map['type'] as String) == 'income' ? TransactionType.income : TransactionType.expense,

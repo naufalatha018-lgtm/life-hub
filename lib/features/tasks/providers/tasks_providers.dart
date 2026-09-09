@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/tasks_dao.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/task_item.dart';
 
 enum TaskViewMode {
@@ -29,19 +30,23 @@ final taskPriorityFilterProvider = StateProvider<TaskPriority?>((ref) {
 final tasksNotifierProvider =
     StateNotifierProvider<TasksNotifier, AsyncValue<List<TaskItem>>>((ref) {
   final dao = ref.watch(tasksDaoProvider);
-  return TasksNotifier(dao);
+  final userId = ref.watch(currentUserIdProvider);
+  return TasksNotifier(dao, userId);
 });
 
 class TasksNotifier extends StateNotifier<AsyncValue<List<TaskItem>>> {
-  TasksNotifier(this._dao) : super(const AsyncValue.loading()) {
+  TasksNotifier(this._dao, [String? userId])
+      : _userId = userId ?? 'guest_default',
+        super(const AsyncValue.loading()) {
     loadTasks();
   }
 
   final TasksDao _dao;
+  final String _userId;
 
   Future<void> loadTasks() async {
     try {
-      final rows = await _dao.getAllTasks();
+      final rows = await _dao.getAllTasks(_userId);
       final list = rows.map((r) => TaskItem.fromMap(r)).toList();
       state = AsyncValue.data(list);
     } catch (e, st) {
@@ -64,6 +69,7 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<TaskItem>>> {
     final now = DateTime.now();
     final task = TaskItem(
       id: 'task_${now.microsecondsSinceEpoch}',
+      userId: _userId,
       title: title.trim(),
       description: description?.trim(),
       status: status,
@@ -89,7 +95,10 @@ class TasksNotifier extends StateNotifier<AsyncValue<List<TaskItem>>> {
   }
 
   Future<void> updateTask(TaskItem task) async {
-    final updated = task.copyWith(updatedAt: DateTime.now());
+    final updated = task.copyWith(
+      userId: _userId,
+      updatedAt: DateTime.now(),
+    );
     await _dao.updateTask(updated.toMap());
 
     state.whenData((tasks) {

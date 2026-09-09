@@ -5,6 +5,7 @@ import '../../../core/utils/currency_formatter.dart';
 class Wallet {
   const Wallet({
     required this.id,
+    this.userId,
     required this.name,
     required this.iconCodePoint,
     required this.colorHex,
@@ -16,6 +17,7 @@ class Wallet {
   });
 
   final String id;
+  final String? userId;
   final String name;
   final int iconCodePoint;
   final String colorHex;
@@ -42,6 +44,7 @@ class Wallet {
 
   Wallet copyWith({
     String? id,
+    String? userId,
     String? name,
     int? iconCodePoint,
     String? colorHex,
@@ -53,6 +56,7 @@ class Wallet {
   }) {
     return Wallet(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       name: name ?? this.name,
       iconCodePoint: iconCodePoint ?? this.iconCodePoint,
       colorHex: colorHex ?? this.colorHex,
@@ -67,6 +71,7 @@ class Wallet {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      if (userId != null) 'user_id': userId,
       'name': name,
       'icon_code_point': iconCodePoint,
       'color_hex': colorHex,
@@ -81,6 +86,7 @@ class Wallet {
   factory Wallet.fromMap(Map<String, dynamic> map) {
     return Wallet(
       id: map['id'] as String,
+      userId: map['user_id'] as String?,
       name: map['name'] as String,
       iconCodePoint: (map['icon_code_point'] as num?)?.toInt() ?? 57534,
       colorHex: map['color_hex'] as String? ?? '#0284C7',

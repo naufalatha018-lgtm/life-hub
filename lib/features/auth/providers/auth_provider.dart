@@ -9,6 +9,11 @@ import '../../../core/crypto/aes_gcm_helper.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/services/supabase_service.dart';
 import '../../../core/utils/currency_provider.dart';
+import '../../finance/providers/finance_providers.dart';
+import '../../finance/providers/wallets_provider.dart';
+import '../../habits/providers/habits_provider.dart';
+import '../../tasks/providers/tasks_providers.dart';
+import '../../wellness/providers/health_sync_provider.dart';
 import '../models/user_model.dart';
 
 class UnverifiedAccountException implements Exception {
@@ -23,15 +28,17 @@ class UnverifiedAccountException implements Exception {
 class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
   final AppDatabase _db;
   final FlutterSecureStorage _storage;
+  final Ref? _ref;
   static const _sessionKey = 'active_auth_user_id';
 
   String? _pendingVerificationEmail;
   String? _lastSentVerificationCode;
 
-  AuthNotifier(this._db, this._storage) : super(const AsyncValue.loading()) {
+  AuthNotifier(this._db, this._storage, [this._ref]) : super(const AsyncValue.loading()) {
     checkSession();
   }
 
+  String get currentUserId => state.value?.id ?? 'guest_default';
   String? get pendingVerificationEmail => _pendingVerificationEmail;
   String? get lastSentVerificationCode => _lastSentVerificationCode;
 
@@ -223,8 +230,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
         _triggerCloudSync();
         return null;
       }
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      state = const AsyncValue.data(null);
       rethrow;
     }
   }
@@ -328,8 +335,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       _lastSentVerificationCode = null;
       state = AsyncValue.data(user);
       _triggerCloudSync();
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      state = const AsyncValue.data(null);
       rethrow;
     }
   }
@@ -429,8 +436,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       }
 
       throw Exception('Kode verifikasi tidak valid. Silakan periksa kembali.');
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      state = const AsyncValue.data(null);
       rethrow;
     }
   }
@@ -563,8 +570,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       _lastSentVerificationCode = null;
       state = AsyncValue.data(user);
       _triggerCloudSync();
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      state = const AsyncValue.data(null);
       rethrow;
     }
   }
@@ -604,8 +611,8 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
       _pendingVerificationEmail = null;
       _lastSentVerificationCode = null;
       state = AsyncValue.data(guestUser);
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
+    } catch (e) {
+      state = const AsyncValue.data(null);
       rethrow;
     }
   }
@@ -729,9 +736,26 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 
   Future<void> signOut() async {
     try {
+      await SupabaseService.instance.signOut();
       await _storage.delete(key: _sessionKey);
       _pendingVerificationEmail = null;
       _lastSentVerificationCode = null;
+
+      // Invalidate all Riverpod feature notifiers to eliminate cached memory leaks
+      if (_ref != null) {
+        _ref.invalidate(walletsNotifierProvider);
+        _ref.invalidate(financeNotifierProvider);
+        _ref.invalidate(tasksNotifierProvider);
+        _ref.invalidate(habitsNotifierProvider);
+        _ref.invalidate(healthSyncProvider);
+        _ref.invalidate(selectedWalletIdProvider);
+        _ref.invalidate(financeDateRangeFilterProvider);
+        _ref.invalidate(financeCustomDateRangeProvider);
+        _ref.invalidate(financeCategoryFilterProvider);
+        _ref.invalidate(taskCategoryFilterProvider);
+        _ref.invalidate(taskPriorityFilterProvider);
+      }
+
       state = const AsyncValue.data(null);
     } catch (e, st) {
       state = AsyncValue.error(e, st);
@@ -742,6 +766,11 @@ class AuthNotifier extends StateNotifier<AsyncValue<AppUser?>> {
 final authNotifierProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AppUser?>>((ref) {
   final storage = ref.watch(currencyStorageProvider);
-  return AuthNotifier(AppDatabase.instance, storage);
+  return AuthNotifier(AppDatabase.instance, storage, ref);
+});
+
+final currentUserIdProvider = Provider<String>((ref) {
+  final user = ref.watch(authNotifierProvider).value;
+  return user?.id ?? 'guest_default';
 });
 

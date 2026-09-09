@@ -36,8 +36,16 @@ class FinanceDao {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getAllTransactions() async {
+  Future<List<Map<String, dynamic>>> getAllTransactions([String? userId]) async {
     final db = await _database;
+    if (userId != null) {
+      return await db.query(
+        'finance_transactions',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'timestamp DESC',
+      );
+    }
     return await db.query(
       'finance_transactions',
       orderBy: 'timestamp DESC',
@@ -45,10 +53,19 @@ class FinanceDao {
   }
 
   Future<List<Map<String, dynamic>>> getTransactionsByDateRange({
+    String? userId,
     required int startEpoch,
     required int endEpoch,
   }) async {
     final db = await _database;
+    if (userId != null) {
+      return await db.query(
+        'finance_transactions',
+        where: 'user_id = ? AND timestamp >= ? AND timestamp <= ?',
+        whereArgs: [userId, startEpoch, endEpoch],
+        orderBy: 'timestamp DESC',
+      );
+    }
     return await db.query(
       'finance_transactions',
       where: 'timestamp >= ? AND timestamp <= ?',
@@ -57,28 +74,38 @@ class FinanceDao {
     );
   }
 
-  Future<int> getTotalIncomeCents({int? startEpoch, int? endEpoch}) async {
+  Future<int> getTotalIncomeCents({String? userId, int? startEpoch, int? endEpoch}) async {
     final db = await _database;
-    String query = 'SELECT COALESCE(SUM(amount_cents), 0) as total FROM finance_transactions WHERE type = "income"';
+    String query = "SELECT COALESCE(SUM(amount_cents), 0) as total FROM finance_transactions WHERE type = 'income'";
     List<dynamic> args = [];
+
+    if (userId != null) {
+      query += ' AND user_id = ?';
+      args.add(userId);
+    }
 
     if (startEpoch != null && endEpoch != null) {
       query += ' AND timestamp >= ? AND timestamp <= ?';
-      args = [startEpoch, endEpoch];
+      args.addAll([startEpoch, endEpoch]);
     }
 
     final result = await db.rawQuery(query, args);
     return (result.first['total'] as num?)?.toInt() ?? 0;
   }
 
-  Future<int> getTotalExpenseCents({int? startEpoch, int? endEpoch}) async {
+  Future<int> getTotalExpenseCents({String? userId, int? startEpoch, int? endEpoch}) async {
     final db = await _database;
-    String query = 'SELECT COALESCE(SUM(amount_cents), 0) as total FROM finance_transactions WHERE type = "expense"';
+    String query = "SELECT COALESCE(SUM(amount_cents), 0) as total FROM finance_transactions WHERE type = 'expense'";
     List<dynamic> args = [];
+
+    if (userId != null) {
+      query += ' AND user_id = ?';
+      args.add(userId);
+    }
 
     if (startEpoch != null && endEpoch != null) {
       query += ' AND timestamp >= ? AND timestamp <= ?';
-      args = [startEpoch, endEpoch];
+      args.addAll([startEpoch, endEpoch]);
     }
 
     final result = await db.rawQuery(query, args);
@@ -86,6 +113,7 @@ class FinanceDao {
   }
 
   Future<Map<String, int>> getCategoryExpenseAggregations({
+    String? userId,
     int? startEpoch,
     int? endEpoch,
   }) async {
@@ -93,13 +121,18 @@ class FinanceDao {
     String query = '''
       SELECT category, COALESCE(SUM(amount_cents), 0) as total
       FROM finance_transactions
-      WHERE type = "expense"
+      WHERE type = 'expense'
     ''';
     List<dynamic> args = [];
 
+    if (userId != null) {
+      query += ' AND user_id = ?';
+      args.add(userId);
+    }
+
     if (startEpoch != null && endEpoch != null) {
       query += ' AND timestamp >= ? AND timestamp <= ?';
-      args = [startEpoch, endEpoch];
+      args.addAll([startEpoch, endEpoch]);
     }
 
     query += ' GROUP BY category ORDER BY total DESC';

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/localization/locale_provider.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../shell/main_adaptive_shell.dart';
@@ -23,6 +24,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   bool _isSignUp = false;
   bool _obscurePassword = true;
+  bool _isLoading = false;
   String? _errorMessage;
   String? _successMessage;
 
@@ -87,9 +89,89 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     );
   }
 
+  String _parseAuthError(dynamic error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid credentials') ||
+          msg.contains('user not found') ||
+          msg.contains('wrong password') ||
+          msg.contains('invalid password')) {
+        return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+      }
+      if (msg.contains('already registered') ||
+          msg.contains('user already exists') ||
+          msg.contains('email address already taken') ||
+          msg.contains('already been taken')) {
+        return 'Email sudah terdaftar. Silakan masuk.';
+      }
+      if (msg.contains('invalid email') || msg.contains('format')) {
+        return 'Format email tidak valid.';
+      }
+      if (msg.contains('network') || msg.contains('connection') || msg.contains('timeout')) {
+        return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+      }
+      return error.message;
+    }
+
+    final str = error.toString().toLowerCase();
+    if (str.contains('no account found') ||
+        str.contains('incorrect password') ||
+        str.contains('invalid credentials') ||
+        str.contains('credentials')) {
+      return 'Email belum terdaftar atau kata sandi salah. Silakan periksa kembali atau buat akun baru.';
+    }
+    if (str.contains('already exists') || str.contains('already registered')) {
+      return 'Email sudah terdaftar. Silakan masuk.';
+    }
+    if (str.contains('valid email')) {
+      return 'Format email tidak valid.';
+    }
+    if (str.contains('socketexception') ||
+        str.contains('network') ||
+        str.contains('connection') ||
+        str.contains('failed host lookup') ||
+        str.contains('clientexception')) {
+      return 'Gagal terhubung ke server. Periksa koneksi internet Anda.';
+    }
+
+    return error.toString().replaceFirst('Exception: ', '');
+  }
+
+  void _showErrorFeedback(String message) {
+    if (!mounted) return;
+    setState(() {
+      _errorMessage = message;
+    });
+
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w500),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: AppColors.expense,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() {
+      _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
     });
@@ -122,13 +204,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       }
     } on UnverifiedAccountException catch (e) {
       _startResendTimer();
-      setState(() {
-        _errorMessage = e.message;
-      });
+      _showErrorFeedback(e.message);
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      final friendly = _parseAuthError(e);
+      _showErrorFeedback(friendly);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -138,11 +221,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final code = _otpController.text.trim();
 
     if (code.length < 6) {
-      setState(() => _errorMessage = 'Please enter the full 6-digit confirmation code.');
+      _showErrorFeedback('Please enter the full 6-digit confirmation code.');
       return;
     }
 
     setState(() {
+      _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
     });
@@ -151,9 +235,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await notifier.verifyEmailOtp(email: email, code: code);
       _navigateToDashboard();
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      final friendly = _parseAuthError(e);
+      _showErrorFeedback(friendly);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -170,19 +257,20 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         _successMessage = 'Kode konfirmasi baru telah dikirimkan ke email Anda.';
       });
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      final friendly = _parseAuthError(e);
+      _showErrorFeedback(friendly);
     }
   }
 
   Future<void> _signInWithGoogle() async {
     setState(() {
+      _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
     });
 
     if (!kIsWeb && defaultTargetPlatform == TargetPlatform.windows) {
+      setState(() => _isLoading = false);
       _showDesktopGoogleDialog();
       return;
     }
@@ -191,9 +279,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authNotifierProvider.notifier).signInGoogle();
       _navigateToDashboard();
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      final friendly = _parseAuthError(e);
+      _showErrorFeedback(friendly);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -241,6 +332,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   Future<void> _signInGuest() async {
     setState(() {
+      _isLoading = true;
       _errorMessage = null;
       _successMessage = null;
     });
@@ -248,9 +340,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       await ref.read(authNotifierProvider.notifier).signInGuest();
       _navigateToDashboard();
     } catch (e) {
-      setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
-      });
+      final friendly = _parseAuthError(e);
+      _showErrorFeedback(friendly);
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -259,7 +354,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final authState = ref.watch(authNotifierProvider);
     final notifier = ref.read(authNotifierProvider.notifier);
     final strings = ref.watch(appStringsProvider);
-    final isLoading = authState.isLoading;
+    final isLoading = _isLoading || authState.isLoading;
     final isPendingVerification = notifier.pendingVerificationEmail != null;
 
     return Scaffold(

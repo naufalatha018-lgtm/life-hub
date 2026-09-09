@@ -18,7 +18,7 @@ class AppDatabase {
   static Database? _database;
 
   static const String _databaseName = 'life_hub_v2.db';
-  static const int _databaseVersion = 4;
+  static const int _databaseVersion = 5;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -37,9 +37,18 @@ class AppDatabase {
         onCreate: _onCreate,
         onUpgrade: _onUpgrade,
         onOpen: (db) async {
-          try {
-            await db.execute('ALTER TABLE app_users ADD COLUMN phone_number TEXT;');
-          } catch (_) {}
+          try { await db.execute('ALTER TABLE app_users ADD COLUMN phone_number TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE wallets ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE finance_transactions ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE tasks ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE habits ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE habit_completions ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE focus_sessions ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE water_logs ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE mood_logs ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE secure_notes ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE vault_files ADD COLUMN user_id TEXT;'); } catch (_) {}
+          try { await db.execute('ALTER TABLE emergency_card ADD COLUMN user_id TEXT;'); } catch (_) {}
         },
       ),
     );
@@ -49,11 +58,13 @@ class AppDatabase {
   static Future<Database> initInMemoryDatabase() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
-    return await openDatabase(
+    final db = await openDatabase(
       inMemoryDatabasePath,
       version: _databaseVersion,
       onCreate: instance._onCreate,
     );
+    _database = db;
+    return db;
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -61,6 +72,7 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE finance_transactions (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         title TEXT NOT NULL,
         amount_cents INTEGER NOT NULL,
         type TEXT NOT NULL,
@@ -79,11 +91,13 @@ class AppDatabase {
     await db.execute('CREATE INDEX idx_finance_timestamp ON finance_transactions(timestamp)');
     await db.execute('CREATE INDEX idx_finance_type ON finance_transactions(type)');
     await db.execute('CREATE INDEX idx_finance_wallet ON finance_transactions(wallet_id)');
+    await db.execute('CREATE INDEX idx_finance_user ON finance_transactions(user_id)');
 
     // 2. Tasks
     await db.execute('''
       CREATE TABLE tasks (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         title TEXT NOT NULL,
         description TEXT,
         status TEXT NOT NULL,
@@ -100,11 +114,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_tasks_status ON tasks(status)');
+    await db.execute('CREATE INDEX idx_tasks_user ON tasks(user_id)');
 
     // 3. Secure Notes
     await db.execute('''
       CREATE TABLE secure_notes (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         encrypted_title TEXT NOT NULL,
         encrypted_content TEXT NOT NULL,
         encrypted_tags TEXT NOT NULL,
@@ -118,11 +134,13 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX idx_notes_pinned ON secure_notes(is_pinned, updated_at DESC)');
     await db.execute('CREATE INDEX idx_notes_archived ON secure_notes(is_archived)');
+    await db.execute('CREATE INDEX idx_notes_user ON secure_notes(user_id)');
 
     // 4. Vault Files
     await db.execute('''
       CREATE TABLE vault_files (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         encrypted_file_name TEXT NOT NULL,
         encrypted_mime_type TEXT NOT NULL,
         relative_path TEXT NOT NULL,
@@ -133,6 +151,7 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_vault_created ON vault_files(created_at DESC)');
+    await db.execute('CREATE INDEX idx_vault_user ON vault_files(user_id)');
 
     // 5. App Users
     await db.execute('''
@@ -156,6 +175,7 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE wallets (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         name TEXT NOT NULL,
         icon_code_point INTEGER NOT NULL DEFAULT 57534,
         color_hex TEXT NOT NULL DEFAULT '#0284C7',
@@ -166,25 +186,13 @@ class AppDatabase {
         updated_at INTEGER NOT NULL
       )
     ''');
-
-    // Seed default wallet (Rekening Utama)
-    final now = DateTime.now().millisecondsSinceEpoch;
-    await db.insert('wallets', {
-      'id': 'wallet_default',
-      'name': 'Rekening Utama',
-      'icon_code_point': 57534,
-      'color_hex': '#0284C7',
-      'balance_cents': 0,
-      'is_default': 1,
-      'sort_order': 0,
-      'created_at': now,
-      'updated_at': now,
-    });
+    await db.execute('CREATE INDEX idx_wallets_user ON wallets(user_id)');
 
     // 7. Habits (Pillar 7)
     await db.execute('''
       CREATE TABLE habits (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         title TEXT NOT NULL,
         description TEXT,
         frequency TEXT NOT NULL DEFAULT 'daily',
@@ -198,11 +206,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_habits_active ON habits(is_active)');
+    await db.execute('CREATE INDEX idx_habits_user ON habits(user_id)');
 
     // 8. Habit Completions
     await db.execute('''
       CREATE TABLE habit_completions (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         habit_id TEXT NOT NULL,
         completed_date INTEGER NOT NULL,
         created_at INTEGER NOT NULL,
@@ -210,11 +220,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_completions_habit ON habit_completions(habit_id, completed_date DESC)');
+    await db.execute('CREATE INDEX idx_completions_user ON habit_completions(user_id)');
 
     // 9. Focus Sessions (Pillar 8)
     await db.execute('''
       CREATE TABLE focus_sessions (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         task_id TEXT,
         duration_seconds INTEGER NOT NULL,
         break_type TEXT NOT NULL DEFAULT 'short',
@@ -225,11 +237,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_focus_started ON focus_sessions(started_at DESC)');
+    await db.execute('CREATE INDEX idx_focus_user ON focus_sessions(user_id)');
 
     // 10. Water Logs (Pillar 9)
     await db.execute('''
       CREATE TABLE water_logs (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         amount_ml INTEGER NOT NULL,
         daily_goal_ml INTEGER NOT NULL DEFAULT 2000,
         logged_at INTEGER NOT NULL,
@@ -237,11 +251,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_water_logged ON water_logs(logged_at DESC)');
+    await db.execute('CREATE INDEX idx_water_user ON water_logs(user_id)');
 
     // 11. Mood Logs (Pillar 9)
     await db.execute('''
       CREATE TABLE mood_logs (
         id TEXT PRIMARY KEY,
+        user_id TEXT,
         mood_level INTEGER NOT NULL,
         note TEXT,
         logged_at INTEGER NOT NULL,
@@ -249,11 +265,13 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_mood_logged ON mood_logs(logged_at DESC)');
+    await db.execute('CREATE INDEX idx_mood_user ON mood_logs(user_id)');
 
     // 12. Emergency Card (Pillar 10) — Single row upsert pattern
     await db.execute('''
       CREATE TABLE emergency_card (
         id TEXT PRIMARY KEY DEFAULT 'singleton',
+        user_id TEXT,
         blood_type TEXT,
         allergies TEXT,
         medical_notes TEXT,
@@ -262,6 +280,7 @@ class AppDatabase {
         updated_at INTEGER NOT NULL
       )
     ''');
+    await db.execute('CREATE INDEX idx_emergency_user ON emergency_card(user_id)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -429,6 +448,26 @@ class AppDatabase {
 
       // Add wallet index on finance_transactions
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_finance_wallet ON finance_transactions(wallet_id)'); } catch (_) {}
+    }
+
+    if (oldVersion < 5) {
+      try { await db.execute('ALTER TABLE wallets ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE finance_transactions ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE tasks ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE habits ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE habit_completions ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE focus_sessions ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE water_logs ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE mood_logs ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE secure_notes ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE vault_files ADD COLUMN user_id TEXT;'); } catch (_) {}
+      try { await db.execute('ALTER TABLE emergency_card ADD COLUMN user_id TEXT;'); } catch (_) {}
+
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_wallets_user ON wallets(user_id);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_finance_user ON finance_transactions(user_id);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_user ON habits(user_id);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_completions_user ON habit_completions(user_id);'); } catch (_) {}
     }
   }
 

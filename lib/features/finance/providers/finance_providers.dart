@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/finance_dao.dart';
 import '../../../core/localization/app_strings.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/finance_transaction.dart';
 
 enum DateRangeFilter {
@@ -49,19 +50,23 @@ final financeCategoryFilterProvider = StateProvider<String?>((ref) {
 final financeNotifierProvider =
     StateNotifierProvider<FinanceNotifier, AsyncValue<List<FinanceTransaction>>>((ref) {
   final dao = ref.watch(financeDaoProvider);
-  return FinanceNotifier(dao);
+  final userId = ref.watch(currentUserIdProvider);
+  return FinanceNotifier(dao, userId);
 });
 
 class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>> {
-  FinanceNotifier(this._dao) : super(const AsyncValue.loading()) {
+  FinanceNotifier(this._dao, [String? userId])
+      : _userId = userId ?? 'guest_default',
+        super(const AsyncValue.loading()) {
     loadTransactions();
   }
 
   final FinanceDao _dao;
+  final String _userId;
 
   Future<void> loadTransactions() async {
     try {
-      final rows = await _dao.getAllTransactions();
+      final rows = await _dao.getAllTransactions(_userId);
       final list = rows.map((r) => FinanceTransaction.fromMap(r)).toList();
       state = AsyncValue.data(list);
     } catch (e, st) {
@@ -77,6 +82,7 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>
     DateTime? timestamp,
     String? note,
     String? linkedTaskId,
+    String? walletId,
     double? latitude,
     double? longitude,
     String? locationName,
@@ -84,6 +90,8 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>
     final now = DateTime.now();
     final tx = FinanceTransaction(
       id: 'tx_${now.microsecondsSinceEpoch}',
+      userId: _userId,
+      walletId: walletId,
       title: title.trim(),
       amountCents: amountCents,
       type: type,
@@ -108,7 +116,10 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>
   }
 
   Future<void> updateTransaction(FinanceTransaction tx) async {
-    final updatedTx = tx.copyWith(updatedAt: DateTime.now());
+    final updatedTx = tx.copyWith(
+      userId: _userId,
+      updatedAt: DateTime.now(),
+    );
     await _dao.updateTransaction(updatedTx.toMap());
 
     state.whenData((transactions) {

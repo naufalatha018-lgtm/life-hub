@@ -27,6 +27,7 @@ enum TaskPriority {
 class TaskItem {
   const TaskItem({
     required this.id,
+    this.userId,
     required this.title,
     this.description,
     required this.status,
@@ -43,6 +44,7 @@ class TaskItem {
   });
 
   final String id;
+  final String? userId;
   final String title;
   final String? description;
   final TaskStatus status;
@@ -71,6 +73,7 @@ class TaskItem {
 
   TaskItem copyWith({
     String? id,
+    String? userId,
     String? title,
     String? description,
     TaskStatus? status,
@@ -87,6 +90,7 @@ class TaskItem {
   }) {
     return TaskItem(
       id: id ?? this.id,
+      userId: userId ?? this.userId,
       title: title ?? this.title,
       description: description ?? this.description,
       status: status ?? this.status,
@@ -106,6 +110,7 @@ class TaskItem {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      if (userId != null) 'user_id': userId,
       'title': title,
       'description': description,
       'status': status.name,
@@ -125,6 +130,7 @@ class TaskItem {
   factory TaskItem.fromMap(Map<String, dynamic> map) {
     return TaskItem(
       id: map['id'] as String,
+      userId: map['user_id'] as String?,
       title: map['title'] as String,
       description: map['description'] as String?,
       status: TaskStatus.values.firstWhere(

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/habits_dao.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../models/habit.dart';
 
 final habitsDaoProvider = Provider<HabitsDao>((ref) => HabitsDao());
@@ -29,21 +30,24 @@ class HabitsState {
 }
 
 class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
-  HabitsNotifier(this._dao) : super(const AsyncValue.loading()) {
+  HabitsNotifier(this._dao, [String? userId])
+      : _userId = userId ?? 'guest_default',
+        super(const AsyncValue.loading()) {
     loadHabits();
   }
 
   final HabitsDao _dao;
+  final String _userId;
 
   Future<void> loadHabits() async {
     try {
-      final rows = await _dao.getActiveHabits();
+      final rows = await _dao.getActiveHabits(_userId);
       final habits = rows.map((r) => Habit.fromMap(r)).toList();
 
       // Load today's completions
       final completedToday = <String>{};
       for (final habit in habits) {
-        if (await _dao.isCompletedToday(habit.id)) {
+        if (await _dao.isCompletedToday(habit.id, _userId)) {
           completedToday.add(habit.id);
         }
       }
@@ -67,6 +71,7 @@ class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
     final now = DateTime.now();
     final habit = Habit(
       id: 'habit_${now.microsecondsSinceEpoch}',
+      userId: _userId,
       title: title.trim(),
       description: description?.trim(),
       frequency: frequency,
@@ -81,7 +86,10 @@ class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
   }
 
   Future<void> updateHabit(Habit habit) async {
-    await _dao.updateHabit(habit.copyWith(updatedAt: DateTime.now()).toMap());
+    await _dao.updateHabit(habit.copyWith(
+      userId: _userId,
+      updatedAt: DateTime.now(),
+    ).toMap());
     await loadHabits();
   }
 
@@ -92,10 +100,10 @@ class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
 
   Future<void> toggleCompletion(String habitId) async {
     HapticFeedback.lightImpact();
-    await _dao.toggleCompletion(habitId, DateTime.now());
+    await _dao.toggleCompletion(habitId, DateTime.now(), _userId);
 
     // Recalculate streak
-    final allCompletions = await _dao.getAllCompletionsForHabit(habitId);
+    final allCompletions = await _dao.getAllCompletionsForHabit(habitId, _userId);
     final sorted = allCompletions
         .map((r) => HabitCompletion.fromMap(r))
         .toList()
@@ -115,14 +123,19 @@ class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
 
   int _calculateCurrentStreak(List<DateTime> sortedDates) {
     if (sortedDates.isEmpty) return 0;
-    int streak = 0;
-    DateTime check = DateTime.now();
-    for (final date in sortedDates) {
-      final d = DateTime(date.year, date.month, date.day);
-      final c = DateTime(check.year, check.month, check.day);
-      if (d == c || d == c.subtract(const Duration(days: 1))) {
+    final today = DateTime.now();
+    final todayDate = DateTime(today.year, today.month, today.day);
+    final mostRecent = DateTime(sortedDates.first.year, sortedDates.first.month, sortedDates.first.day);
+
+    final diff = todayDate.difference(mostRecent).inDays;
+    if (diff > 1) return 0; // Streak broken
+
+    int streak = 1;
+    for (int i = 1; i < sortedDates.length; i++) {
+      final prev = DateTime(sortedDates[i - 1].year, sortedDates[i - 1].month, sortedDates[i - 1].day);
+      final curr = DateTime(sortedDates[i].year, sortedDates[i].month, sortedDates[i].day);
+      if (prev.difference(curr).inDays == 1) {
         streak++;
-        check = d.subtract(const Duration(days: 1));
       } else {
         break;
       }
@@ -148,12 +161,14 @@ class HabitsNotifier extends StateNotifier<AsyncValue<HabitsState>> {
   }
 
   Future<List<HabitCompletion>> getWeekCompletions(String habitId) async {
-    final rows = await _dao.getCompletionsForHabit(habitId, days: 7);
+    final rows = await _dao.getCompletionsForHabit(habitId, days: 7, userId: _userId);
     return rows.map((r) => HabitCompletion.fromMap(r)).toList();
   }
 }
 
 final habitsNotifierProvider =
     StateNotifierProvider<HabitsNotifier, AsyncValue<HabitsState>>((ref) {
-  return HabitsNotifier(ref.watch(habitsDaoProvider));
+  final dao = ref.watch(habitsDaoProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  return HabitsNotifier(dao, userId);
 });

@@ -36,8 +36,16 @@ class TasksDao {
     );
   }
 
-  Future<List<Map<String, dynamic>>> getAllTasks() async {
+  Future<List<Map<String, dynamic>>> getAllTasks([String? userId]) async {
     final db = await _database;
+    if (userId != null) {
+      return await db.query(
+        'tasks',
+        where: 'user_id = ?',
+        whereArgs: [userId],
+        orderBy: 'created_at DESC',
+      );
+    }
     return await db.query(
       'tasks',
       orderBy: 'created_at DESC',
