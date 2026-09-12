@@ -1,4 +1,4 @@
-package com.lifehub.app
+package com.pauldev.actividata
 
 import android.content.Intent
 import android.net.Uri

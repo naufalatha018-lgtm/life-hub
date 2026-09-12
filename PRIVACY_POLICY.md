@@ -3,7 +3,7 @@
 **Effective Date:** September 12, 2026  
 **Last Updated:** September 12, 2026  
 **Application Name:** Actividata (Life OS)  
-**Package Name / Application ID:** `com.lifehub.app`  
+**Package Name / Application ID:** `com.pauldev.actividata`  
 **Developer:** Naufal Atha ([GitHub Repository](https://github.com/naufalatha018-lgtm/life-hub))
 
 ---

@@ -20,7 +20,7 @@
         android:name="${applicationName}"
         android:icon="@mipmap/launcher_icon">
         <activity
-            android:name="com.lifehub.app.MainActivity"
+            android:name="com.pauldev.actividata.MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:taskAffinity=""
@@ -46,7 +46,7 @@
         <activity-alias
             android:name="ViewPermissionUsageActivity"
             android:exported="true"
-            android:targetActivity="com.lifehub.app.MainActivity"
+            android:targetActivity="com.pauldev.actividata.MainActivity"
             android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
@@ -58,7 +58,7 @@
         <activity-alias
             android:name="PermissionRationaleActivity"
             android:exported="true"
-            android:targetActivity="com.lifehub.app.MainActivity">
+            android:targetActivity="com.pauldev.actividata.MainActivity">
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
             </intent-filter>

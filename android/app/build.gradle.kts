@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.lifehub.app"
+    namespace = "com.pauldev.actividata"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -16,7 +16,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.lifehub.app"
+        applicationId = "com.pauldev.actividata"
         minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

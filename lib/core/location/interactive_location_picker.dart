@@ -276,7 +276,7 @@ class _InteractiveLocationPickerState extends State<InteractiveLocationPicker>
                         children: [
                           TileLayer(
                             urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                            userAgentPackageName: 'com.lifehub.app',
+                            userAgentPackageName: 'com.pauldev.actividata',
                           ),
                           MarkerLayer(
                             markers: [
