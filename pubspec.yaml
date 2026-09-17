@@ -76,6 +76,7 @@ dependencies:
 
   # Audio Feedback & Notifications
   audioplayers: ^6.1.0
+  pdf: ^3.13.0
 
 dev_dependencies:
   flutter_test:

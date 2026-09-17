@@ -18,7 +18,7 @@ class AppDatabase {
   static Database? _database;
 
   static const String _databaseName = 'life_hub_v2.db';
-  static const int _databaseVersion = 5;
+  static const int _databaseVersion = 6;
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -281,6 +281,41 @@ class AppDatabase {
       )
     ''');
     await db.execute('CREATE INDEX idx_emergency_user ON emergency_card(user_id)');
+
+    // 13. Immutable Tamper-Evident Audit Logs (Laravel Spatie Parity)
+    await db.execute('''
+      CREATE TABLE audit_logs (
+        log_id TEXT PRIMARY KEY,
+        actor_id TEXT NOT NULL,
+        action_type TEXT NOT NULL,
+        table_name TEXT NOT NULL,
+        diff_payload TEXT NOT NULL,
+        device_fingerprint TEXT NOT NULL,
+        timestamp INTEGER NOT NULL,
+        previous_hash TEXT NOT NULL,
+        current_hash TEXT NOT NULL
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_audit_timestamp ON audit_logs(timestamp ASC)');
+    await db.execute('CREATE INDEX idx_audit_table ON audit_logs(table_name)');
+
+    // 14. Outbox Sync Queue (Laravel Queue Parity)
+    await db.execute('''
+      CREATE TABLE outbox_sync_queue (
+        id TEXT PRIMARY KEY,
+        aggregate_type TEXT NOT NULL,
+        aggregate_id TEXT NOT NULL,
+        payload TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        retry_count INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        vector_clock TEXT
+      )
+    ''');
+    await db.execute('CREATE INDEX idx_outbox_status ON outbox_sync_queue(status, created_at ASC)');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -468,6 +503,43 @@ class AppDatabase {
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_habits_user ON habits(user_id);'); } catch (_) {}
       try { await db.execute('CREATE INDEX IF NOT EXISTS idx_completions_user ON habit_completions(user_id);'); } catch (_) {}
+    }
+
+    if (oldVersion < 6) {
+      // 13. Immutable Audit Logs
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS audit_logs (
+          log_id TEXT PRIMARY KEY,
+          actor_id TEXT NOT NULL,
+          action_type TEXT NOT NULL,
+          table_name TEXT NOT NULL,
+          diff_payload TEXT NOT NULL,
+          device_fingerprint TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          previous_hash TEXT NOT NULL,
+          current_hash TEXT NOT NULL
+        )
+      ''');
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON audit_logs(timestamp ASC);'); } catch (_) {}
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_audit_table ON audit_logs(table_name);'); } catch (_) {}
+
+      // 14. Outbox Sync Queue
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS outbox_sync_queue (
+          id TEXT PRIMARY KEY,
+          aggregate_type TEXT NOT NULL,
+          aggregate_id TEXT NOT NULL,
+          payload TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          vector_clock TEXT
+        )
+      ''');
+      try { await db.execute('CREATE INDEX IF NOT EXISTS idx_outbox_status ON outbox_sync_queue(status, created_at ASC);'); } catch (_) {}
     }
   }
 

@@ -12,6 +12,7 @@ import 'subviews/settings_account_view.dart';
 import 'subviews/settings_ai_view.dart';
 import 'subviews/settings_cloud_sync_view.dart';
 import 'subviews/settings_currency_view.dart';
+import 'subviews/settings_executive_view.dart';
 import 'subviews/settings_language_view.dart';
 import 'subviews/settings_notifications_view.dart';
 import 'subviews/settings_security_view.dart';
@@ -188,6 +189,17 @@ class SettingsView extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 20),
+
+            // Executive Controls & Architecture HUD (Stripe/Brex FinTech)
+            _buildNavCard(
+              context: context,
+              icon: Icons.shield_rounded,
+              color: const Color(0xFF00E599),
+              title: 'Executive Controls & Architecture HUD',
+              subtitle: 'Outbox Sync • HMAC Audit Trail • RBAC Gates • Isolate Reports',
+              page: const SettingsExecutiveView(),
+            ),
+            const SizedBox(height: 10),
 
             // Settings Hub Navigation Options
             _buildNavCard(

@@ -36,7 +36,8 @@ android {
         outputs.all {
             (this as? com.android.build.gradle.internal.api.BaseVariantOutputImpl)?.let { output ->
                 if (buildType.name == "release") {
-                    output.outputFileName = "Life-Hub-Release.apk"
+                    val abi = output.getFilter("ABI")
+                    output.outputFileName = if (abi != null) "Life-Hub-Release-$abi.apk" else "Life-Hub-Release.apk"
                 }
             }
         }
