@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/finance_dao.dart';
 import '../../../core/localization/app_strings.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/security/master_auth_provider.dart';
 import '../models/finance_transaction.dart';
 
 enum DateRangeFilter {
@@ -120,12 +121,11 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>
       userId: _userId,
       updatedAt: DateTime.now(),
     );
+
     await _dao.updateTransaction(updatedTx.toMap());
 
     state.whenData((transactions) {
-      final updated = transactions
-          .map((item) => item.id == tx.id ? updatedTx : item)
-          .toList();
+      final updated = transactions.map((t) => t.id == tx.id ? updatedTx : t).toList();
       updated.sort((a, b) => b.timestamp.compareTo(a.timestamp));
       state = AsyncValue.data(updated);
     });
@@ -133,14 +133,23 @@ class FinanceNotifier extends StateNotifier<AsyncValue<List<FinanceTransaction>>
 
   Future<void> deleteTransaction(String id) async {
     await _dao.deleteTransaction(id);
+
     state.whenData((transactions) {
-      state = AsyncValue.data(transactions.where((tx) => tx.id != id).toList());
+      final updated = transactions.where((t) => t.id != id).toList();
+      state = AsyncValue.data(updated);
     });
   }
+
+  Future<void> refresh() => loadTransactions();
 }
 
 /// Filtered transactions based on active DateRangeFilter and CategoryFilter
 final filteredTransactionsProvider = Provider<List<FinanceTransaction>>((ref) {
+  final isDecoy = ref.watch(isDecoySessionProvider);
+  if (isDecoy) {
+    return const [];
+  }
+
   final txAsync = ref.watch(financeNotifierProvider);
   final dateFilter = ref.watch(financeDateRangeFilterProvider);
   final customRange = ref.watch(financeCustomDateRangeProvider);

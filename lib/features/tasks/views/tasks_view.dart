@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/localization/locale_provider.dart';
+import '../../../../core/theme/app_color_palette.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_executive_theme.dart';
+import '../../../../core/theme/premium_glass_card.dart';
 import '../../../../core/widgets/currency_toggle_chip.dart';
+import '../../../../core/widgets/executive_badge.dart';
 import '../models/task_item.dart';
 import '../providers/tasks_providers.dart';
 import 'widgets/add_task_dialog.dart';
@@ -33,10 +38,11 @@ class TasksView extends ConsumerWidget {
     final pendingCount = totalCount - doneCount;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColorPalette.surfaceDeepDark,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColorPalette.surfaceDeepDark,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           children: [
             Container(
@@ -52,11 +58,7 @@ class TasksView extends ConsumerWidget {
               child: Text(
                 strings.tasksTitle,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppExecutiveTheme.subsectionHeader.copyWith(fontSize: 18),
               ),
             ),
           ],
@@ -118,13 +120,10 @@ class TasksView extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Status Counters & Progress
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.cardBorder),
-              ),
+            PremiumGlassCard(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              borderRadius: BorderRadius.circular(16),
+              backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.60),
               child: Row(
                 children: [
                   Expanded(
@@ -133,42 +132,86 @@ class TasksView extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryGlow,
+                            color: AppColorPalette.azureGlow,
                             borderRadius: BorderRadius.circular(8),
                           ),
-                          child: const Icon(Icons.checklist_rtl_rounded, color: AppColors.primaryLight, size: 18),
+                          child: const Icon(
+                            Icons.checklist_rtl_rounded,
+                            color: AppColorPalette.azureLight,
+                            size: 18,
+                          ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              '$pendingCount Pending',
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  '$pendingCount',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    color: AppColorPalette.textPrimary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const ExecutiveBadge(
+                                  label: 'PENDING',
+                                  style: ExecutiveBadgeStyle.azure,
+                                ),
+                              ],
                             ),
-                            Text(
-                              '$doneCount Completed',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Text(
+                                  '$doneCount',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    color: AppColorPalette.electricEmerald,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                const ExecutiveBadge(
+                                  label: 'DONE',
+                                  style: ExecutiveBadgeStyle.emerald,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ],
                     ),
                   ),
+                  // Radial-style progress ring placeholder using a Stack
                   SizedBox(
-                    width: 100,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: totalCount > 0 ? (doneCount / totalCount) : 0,
-                        backgroundColor: AppColors.surfaceVariant,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.income),
-                        minHeight: 8,
-                      ),
+                    width: 56,
+                    height: 56,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: totalCount > 0 ? (doneCount / totalCount) : 0,
+                          backgroundColor: AppColorPalette.borderSubtle,
+                          valueColor: const AlwaysStoppedAnimation<Color>(
+                            AppColorPalette.electricEmerald,
+                          ),
+                          strokeWidth: 5,
+                          strokeCap: StrokeCap.round,
+                        ),
+                        Text(
+                          totalCount > 0
+                              ? '${((doneCount / totalCount) * 100).round()}%'
+                              : '0%',
+                          style: GoogleFonts.jetBrainsMono(
+                            color: AppColorPalette.electricEmerald,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

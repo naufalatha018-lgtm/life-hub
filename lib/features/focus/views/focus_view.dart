@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/glass_container.dart';
 import '../models/focus_session.dart';
 import '../providers/focus_provider.dart';
+import 'soundscapes_control_bar.dart';
 
 class FocusView extends ConsumerWidget {
   const FocusView({super.key});
@@ -159,6 +160,11 @@ class FocusView extends ConsumerWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Ambient Soundscapes
+            const SoundscapesControlBar(),
+            const SizedBox(height: 20),
           ],
         ),
       ),

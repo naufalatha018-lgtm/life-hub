@@ -5,15 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_constants.dart';
 import '../../core/lifecycle/inactivity_lock_manager.dart';
 import '../../core/localization/locale_provider.dart';
-import '../../core/theme/app_colors.dart';
+import '../../core/security/master_auth_provider.dart';
+import '../../core/theme/app_color_palette.dart';
 import '../auth/providers/auth_provider.dart';
 import '../dashboard/views/dashboard_view.dart';
 import '../finance/views/finance_view.dart';
-import '../notes/providers/notes_auth_provider.dart';
+import '../notes/providers/notes_crud_provider.dart';
 import '../notes/views/secure_notes_view.dart';
 import '../settings/providers/settings_providers.dart';
 import '../settings/views/settings_view.dart';
 import '../tasks/views/tasks_view.dart';
+import '../vault/providers/vault_files_provider.dart';
 import 'widgets/quick_action_fab.dart';
 
 final activeNavIndexProvider = StateProvider<int>((ref) => 0);
@@ -28,6 +30,9 @@ class MainAdaptiveShell extends ConsumerStatefulWidget {
 class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
   late InactivityLockManager _lockManager;
   late final FocusNode _keyboardFocusNode;
+
+  int _hudTapCount = 0;
+  DateTime? _lastHudTapTime;
 
   // Tab #1 = Dashboard, #2 = Finance, #3 = Tasks, #4 = Vault, #5 = Settings
   static const List<Widget> _pages = [
@@ -45,7 +50,7 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
     _lockManager = InactivityLockManager(
       timeoutSeconds: AppConstants.autoLockTimeoutSeconds,
       onLockTriggered: () {
-        ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
+        _triggerPanicWipe();
       },
     );
     _lockManager.start();
@@ -64,8 +69,49 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
 
   void _onNavTap(int index) {
     _onUserActivity();
-    HapticFeedback.selectionClick(); // Pillar 21 - haptic nav feedback
+    HapticFeedback.selectionClick();
     ref.read(activeNavIndexProvider.notifier).state = index;
+  }
+
+  /// Instant Panic Wipe Trigger:
+  /// Zeroes out RAM, purges decrypted state, and locks the application.
+  void _triggerPanicWipe() {
+    HapticFeedback.heavyImpact();
+    ref.read(masterAuthNotifierProvider.notifier).panicWipe();
+    ref.read(decryptedNotesProvider.notifier).purgeMemory();
+    ref.read(decryptedVaultFilesProvider.notifier).purgeMemory();
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.lock_rounded, color: AppColorPalette.crimsonVelvet, size: 16),
+              SizedBox(width: 8),
+              Text('PANIC WIPE: Session zeroized & locked'),
+            ],
+          ),
+          backgroundColor: AppColorPalette.surfaceElevated,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  /// Triple-tap detector on top HUD / App Header to instantly trigger Panic Wipe
+  void _onHudTap() {
+    final now = DateTime.now();
+    if (_lastHudTapTime == null || now.difference(_lastHudTapTime!) > const Duration(milliseconds: 600)) {
+      _hudTapCount = 1;
+    } else {
+      _hudTapCount++;
+      if (_hudTapCount >= 3) {
+        _hudTapCount = 0;
+        _triggerPanicWipe();
+        return;
+      }
+    }
+    _lastHudTapTime = now;
   }
 
   void _handleKeyShortcuts(KeyEvent event) {
@@ -85,13 +131,8 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
         } else if (event.logicalKey == LogicalKeyboardKey.digit5) {
           _onNavTap(4);
         } else if (event.logicalKey == LogicalKeyboardKey.keyL) {
-          ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Vault Locked'),
-              duration: Duration(seconds: 1),
-            ),
-          );
+          // Instant Panic Wipe trigger on Ctrl+Shift+L or Ctrl+L
+          _triggerPanicWipe();
         }
       }
     }
@@ -103,26 +144,26 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColorPalette.surfaceSecondary,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: AppColors.cardBorder),
+          side: const BorderSide(color: AppColorPalette.borderSubtle),
         ),
-        title: Text(strings.signOutConfirmTitle),
-        content: Text(strings.signOutConfirmNotice),
+        title: Text(strings.signOutConfirmTitle, style: const TextStyle(color: AppColorPalette.textPrimary)),
+        content: Text(strings.signOutConfirmNotice, style: const TextStyle(color: AppColorPalette.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: Text(strings.cancel),
+            child: Text(strings.cancel, style: const TextStyle(color: AppColorPalette.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.expense),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColorPalette.crimsonVelvet),
             onPressed: () {
               Navigator.of(ctx).pop();
-              ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
+              _triggerPanicWipe();
               ref.read(authNotifierProvider.notifier).signOut();
             },
-            child: Text(strings.signOutButton),
+            child: Text(strings.signOutButton, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -137,7 +178,7 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
         _lockManager = InactivityLockManager(
           timeoutSeconds: next,
           onLockTriggered: () {
-            ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
+            _triggerPanicWipe();
           },
         );
         _lockManager.start();
@@ -155,16 +196,23 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
       onKeyEvent: _handleKeyShortcuts,
       child: Listener(
         behavior: HitTestBehavior.translucent,
-        onPointerDown: (_) => _onUserActivity(),
+        onPointerDown: (e) {
+          _onUserActivity();
+          // Check top 70px HUD area for triple tap
+          if (e.position.dy < 70) {
+            _onHudTap();
+          }
+        },
         onPointerMove: (_) => _onUserActivity(),
         child: Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: AppColorPalette.surfaceDeepDark,
           floatingActionButton: currentIndex == 0 ? const QuickActionFab() : null,
           body: isDesktop
               ? Row(
                   children: [
                     // Desktop Navigation Rail
                     NavigationRail(
+                      backgroundColor: AppColorPalette.surfaceSecondary,
                       selectedIndex: currentIndex,
                       onDestinationSelected: _onNavTap,
                       labelType: NavigationRailLabelType.all,
@@ -176,13 +224,13 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                             Container(
                               padding: const EdgeInsets.all(10),
                               decoration: BoxDecoration(
-                                color: AppColors.primary,
+                                color: AppColorPalette.deepAzure,
                                 borderRadius: BorderRadius.circular(14),
-                                boxShadow: const [
+                                boxShadow: [
                                   BoxShadow(
-                                    color: Color(0x200284C7),
+                                    color: AppColorPalette.deepAzure.withOpacity(0.3),
                                     blurRadius: 10,
-                                    offset: Offset(0, 4),
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
@@ -209,7 +257,7 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                                     message: '${user.effectiveName}\n(${user.email})',
                                     child: CircleAvatar(
                                       radius: 15,
-                                      backgroundColor: AppColors.primaryGlow,
+                                      backgroundColor: AppColorPalette.surfaceElevated,
                                       backgroundImage: avatarImg,
                                       child: avatarImg == null
                                           ? Text(
@@ -217,7 +265,7 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                                                   ? user.effectiveName[0].toUpperCase()
                                                   : 'U',
                                               style: const TextStyle(
-                                                color: AppColors.primary,
+                                                color: AppColorPalette.electricEmerald,
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -240,16 +288,14 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 IconButton(
-                                  tooltip: '${strings.lockVault} (Ctrl+L)',
-                                  icon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColors.textMuted),
-                                  onPressed: () {
-                                    ref.read(notesAuthNotifierProvider.notifier).lockAndPurge();
-                                  },
+                                  tooltip: '${strings.lockVault} (Ctrl+Shift+L)',
+                                  icon: const Icon(Icons.lock_outline_rounded, size: 20, color: AppColorPalette.textMuted),
+                                  onPressed: _triggerPanicWipe,
                                 ),
                                 const SizedBox(height: 6),
                                 IconButton(
                                   tooltip: strings.signOutButton,
-                                  icon: const Icon(Icons.logout_rounded, size: 18, color: AppColors.expense),
+                                  icon: const Icon(Icons.logout_rounded, size: 18, color: AppColorPalette.crimsonVelvet),
                                   onPressed: () => _confirmSignOut(context),
                                 ),
                               ],
@@ -259,33 +305,33 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                       ),
                       destinations: [
                         NavigationRailDestination(
-                          icon: const Icon(Icons.home_outlined),
-                          selectedIcon: const Icon(Icons.home_rounded),
-                          label: Text(strings.navDashboard),
+                          icon: const Icon(Icons.home_outlined, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.home_rounded, color: AppColorPalette.electricEmerald),
+                          label: Text(strings.navDashboard, style: const TextStyle(color: AppColorPalette.textPrimary)),
                         ),
                         NavigationRailDestination(
-                          icon: const Icon(Icons.account_balance_wallet_outlined),
-                          selectedIcon: const Icon(Icons.account_balance_wallet_rounded),
-                          label: Text(strings.navFinance),
+                          icon: const Icon(Icons.account_balance_wallet_outlined, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.account_balance_wallet_rounded, color: AppColorPalette.electricEmerald),
+                          label: Text(strings.navFinance, style: const TextStyle(color: AppColorPalette.textPrimary)),
                         ),
                         NavigationRailDestination(
-                          icon: const Icon(Icons.task_alt_outlined),
-                          selectedIcon: const Icon(Icons.task_alt_rounded),
-                          label: Text(strings.navTasks),
+                          icon: const Icon(Icons.task_alt_outlined, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.task_alt_rounded, color: AppColorPalette.electricEmerald),
+                          label: Text(strings.navTasks, style: const TextStyle(color: AppColorPalette.textPrimary)),
                         ),
                         NavigationRailDestination(
-                          icon: const Icon(Icons.lock_outline_rounded),
-                          selectedIcon: const Icon(Icons.lock_rounded),
-                          label: Text(strings.navVault),
+                          icon: const Icon(Icons.lock_outline_rounded, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.lock_rounded, color: AppColorPalette.electricEmerald),
+                          label: Text(strings.navVault, style: const TextStyle(color: AppColorPalette.textPrimary)),
                         ),
                         NavigationRailDestination(
-                          icon: const Icon(Icons.settings_outlined),
-                          selectedIcon: const Icon(Icons.settings_rounded),
-                          label: Text(strings.navSettings),
+                          icon: const Icon(Icons.settings_outlined, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.settings_rounded, color: AppColorPalette.electricEmerald),
+                          label: Text(strings.navSettings, style: const TextStyle(color: AppColorPalette.textPrimary)),
                         ),
                       ],
                     ),
-                    const VerticalDivider(thickness: 1, width: 1, color: AppColors.cardBorder),
+                    const VerticalDivider(thickness: 1, width: 1, color: AppColorPalette.borderSubtle),
                     Expanded(
                       child: AnimatedSwitcher(
                         duration: const Duration(milliseconds: 200),
@@ -308,9 +354,9 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
               ? null
               : Container(
                   decoration: const BoxDecoration(
-                    color: AppColors.surface,
+                    color: AppColorPalette.surfaceSecondary,
                     border: Border(
-                      top: BorderSide(color: AppColors.cardBorderSubtle, width: 1),
+                      top: BorderSide(color: AppColorPalette.borderSubtle, width: 1),
                     ),
                   ),
                   child: SafeArea(
@@ -318,34 +364,35 @@ class _MainAdaptiveShellState extends ConsumerState<MainAdaptiveShell> {
                     child: NavigationBar(
                       height: 66,
                       backgroundColor: Colors.transparent,
+                      indicatorColor: AppColorPalette.surfaceElevated,
                       elevation: 0,
                       labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
                       selectedIndex: currentIndex,
                       onDestinationSelected: _onNavTap,
                       destinations: [
                         NavigationDestination(
-                          icon: const Icon(Icons.home_outlined, size: 22),
-                          selectedIcon: const Icon(Icons.home_rounded, size: 22),
+                          icon: const Icon(Icons.home_outlined, size: 22, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.home_rounded, size: 22, color: AppColorPalette.electricEmerald),
                           label: strings.navDashboard,
                         ),
                         NavigationDestination(
-                          icon: const Icon(Icons.account_balance_wallet_outlined, size: 22),
-                          selectedIcon: const Icon(Icons.account_balance_wallet_rounded, size: 22),
+                          icon: const Icon(Icons.account_balance_wallet_outlined, size: 22, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.account_balance_wallet_rounded, size: 22, color: AppColorPalette.electricEmerald),
                           label: strings.navFinance,
                         ),
                         NavigationDestination(
-                          icon: const Icon(Icons.task_alt_outlined, size: 22),
-                          selectedIcon: const Icon(Icons.task_alt_rounded, size: 22),
+                          icon: const Icon(Icons.task_alt_outlined, size: 22, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.task_alt_rounded, size: 22, color: AppColorPalette.electricEmerald),
                           label: strings.navTasks,
                         ),
                         NavigationDestination(
-                          icon: const Icon(Icons.lock_outline_rounded, size: 22),
-                          selectedIcon: const Icon(Icons.lock_rounded, size: 22),
+                          icon: const Icon(Icons.lock_outline_rounded, size: 22, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.lock_rounded, size: 22, color: AppColorPalette.electricEmerald),
                           label: strings.navVault,
                         ),
                         NavigationDestination(
-                          icon: const Icon(Icons.settings_outlined, size: 22),
-                          selectedIcon: const Icon(Icons.settings_rounded, size: 22),
+                          icon: const Icon(Icons.settings_outlined, size: 22, color: AppColorPalette.textSecondary),
+                          selectedIcon: const Icon(Icons.settings_rounded, size: 22, color: AppColorPalette.electricEmerald),
                           label: strings.navSettings,
                         ),
                       ],

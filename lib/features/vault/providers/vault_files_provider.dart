@@ -42,7 +42,7 @@ class VaultFilesNotifier extends StateNotifier<AsyncValue<List<VaultFileItem>>> 
   }
 
   Future<void> loadDecryptedFiles() async {
-    if (!_keyHolder.hasKey) {
+    if (!_keyHolder.hasKey || _keyHolder.isDecoy) {
       state = const AsyncValue.data([]);
       return;
     }

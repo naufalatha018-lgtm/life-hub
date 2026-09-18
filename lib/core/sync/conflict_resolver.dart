@@ -1,5 +1,3 @@
-import 'dart:math';
-
 /// Hybrid Logical Clock (HLC) implementation for deterministic causality tracking.
 class HybridLogicalClock implements Comparable<HybridLogicalClock> {
   final int logicalTime; // Physical wall-clock ms

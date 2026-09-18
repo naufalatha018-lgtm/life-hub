@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:life_hub/core/localization/locale_provider.dart';
+import 'package:life_hub/core/security/master_auth_provider.dart';
 import 'package:life_hub/features/auth/models/user_model.dart';
 import 'package:life_hub/features/auth/providers/auth_provider.dart';
 import 'package:life_hub/main.dart';
@@ -23,6 +24,21 @@ class MockAuthNotifier extends StateNotifier<AsyncValue<AppUser?>>
 class MockLocaleNotifier extends StateNotifier<AppLanguage>
     implements LocaleNotifier {
   MockLocaleNotifier(super.state);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class MockMasterAuthNotifier extends StateNotifier<MasterAuthState>
+    implements MasterAuthNotifier {
+  MockMasterAuthNotifier([MasterAuthStatus status = MasterAuthStatus.unlocked])
+      : super(MasterAuthState(status: status));
+
+  @override
+  void panicWipe() {}
+
+  @override
+  void lock() {}
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -75,11 +91,14 @@ void main() {
               .overrideWith((ref) => MockAuthNotifier(mockUser)),
           localeProvider
               .overrideWith((ref) => MockLocaleNotifier(AppLanguage.id)),
+          masterAuthNotifierProvider
+              .overrideWith((ref) => MockMasterAuthNotifier()),
         ],
         child: const LifeOsApp(),
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify Indonesian adaptive shell navigation labels
     expect(find.text('Beranda'), findsWidgets);
@@ -111,11 +130,14 @@ void main() {
         overrides: [
           authNotifierProvider.overrideWith((ref) => MockAuthNotifier(mockUser)),
           localeProvider.overrideWith((ref) => MockLocaleNotifier(AppLanguage.en)),
+          masterAuthNotifierProvider
+              .overrideWith((ref) => MockMasterAuthNotifier()),
         ],
         child: const LifeOsApp(),
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
 
     // Verify English adaptive shell navigation labels
     expect(find.text('Home'), findsWidgets);

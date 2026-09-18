@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/database/app_database.dart';
 import 'core/localization/locale_provider.dart';
+import 'core/security/cold_start_auth_guard.dart';
 import 'core/services/ai_service.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/supabase_service.dart';
-import 'core/theme/app_colors.dart';
-import 'core/theme/app_theme.dart';
+import 'core/theme/app_color_palette.dart';
+import 'core/theme/app_executive_theme.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/views/auth_screen.dart';
 import 'features/shell/main_adaptive_shell.dart';
@@ -69,26 +70,29 @@ class LifeOsApp extends ConsumerWidget {
     final authState = ref.watch(authNotifierProvider);
     final activeLanguage = ref.watch(localeProvider);
 
-    final executiveLightTheme = AppTheme.lightTheme;
+    final darkExecutiveTheme = AppExecutiveTheme.darkExecutiveTheme;
 
     return MaterialApp(
       title: 'Actividata',
       debugShowCheckedModeBanner: false,
       locale: Locale(activeLanguage.code),
-      theme: executiveLightTheme,
-      themeMode: ThemeMode.light,
+      theme: darkExecutiveTheme,
+      darkTheme: darkExecutiveTheme,
+      themeMode: ThemeMode.dark,
       home: authState.when(
         data: (user) {
           if (user == null) {
             return const AuthScreen();
           }
-          return const MainAdaptiveShell();
+          return const ColdStartAuthGuard(
+            child: MainAdaptiveShell(),
+          );
         },
         loading: () => const Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: AppColorPalette.surfaceDeepDark,
           body: Center(
             child: CircularProgressIndicator(
-              color: AppColors.primary,
+              color: AppColorPalette.electricEmerald,
               strokeWidth: 2,
             ),
           ),

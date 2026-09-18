@@ -32,7 +32,7 @@ class DecryptedNotesNotifier extends StateNotifier<AsyncValue<List<SecureNote>>>
   final String? _userId;
 
   Future<void> loadDecryptedNotes() async {
-    if (!_keyHolder.hasKey) {
+    if (!_keyHolder.hasKey || _keyHolder.isDecoy) {
       state = const AsyncValue.data([]);
       return;
     }

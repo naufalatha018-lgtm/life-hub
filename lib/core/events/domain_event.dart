@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 /// Typed Sealed Domain Event Hierarchy (Laravel Echo Event Parity).
 sealed class DomainEvent {
   final String eventId;

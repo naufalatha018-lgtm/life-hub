@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:life_hub/core/audit/audit_log_dao.dart';
-import 'package:life_hub/core/audit/audit_log_model.dart';
 import 'package:life_hub/core/audit/audit_trail_manager.dart';
 import 'package:life_hub/core/database/app_database.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';

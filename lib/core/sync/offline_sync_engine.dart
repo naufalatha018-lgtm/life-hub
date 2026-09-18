@@ -55,6 +55,7 @@ class OfflineSyncEngine extends StateNotifier<SyncEngineState> {
   final AppDatabase _database;
   Timer? _periodicSyncTimer;
   bool _isDisposed = false;
+  bool get isDisposed => _isDisposed;
   static const _uuid = Uuid();
   HybridLogicalClock? _lastHlc;
 

@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:life_hub/core/policy/gate.dart';
-import 'package:life_hub/core/policy/policies.dart';
 import 'package:life_hub/core/policy/policy_models.dart';
 
 void main() {
@@ -58,6 +57,22 @@ void main() {
           target: highValueTransaction,
         ),
         isFalse,
+      );
+
+      const exportUser = UserPermissionProfile(
+        userId: 'usr_export',
+        email: 'export@lifehub.corp',
+        role: UserRole.member,
+        directPermissions: {'export-reports'},
+      );
+
+      expect(
+        Gate.allows(
+          user: exportUser,
+          ability: 'export-high-value-report',
+          target: lowValueTransaction,
+        ),
+        isTrue,
       );
 
       // Executive is allowed

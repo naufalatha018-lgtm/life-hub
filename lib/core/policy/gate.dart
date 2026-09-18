@@ -8,11 +8,6 @@ import 'policy_models.dart';
 class Gate {
   Gate._();
 
-  static final Map<Type, Policy<dynamic>> _policies = {
-    Map<String, dynamic>: FinancePolicy(),
-    dynamic: AuditPolicy(),
-  };
-
   static final FinancePolicy _financePolicy = FinancePolicy();
   static final AuditPolicy _auditPolicy = AuditPolicy();
   static final VaultPolicy _vaultPolicy = VaultPolicy();
@@ -99,12 +94,14 @@ class Gate {
         localizedReason: biometricReason,
       );
       if (!bioSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Otentikasi biometrik gagal atau dibatalkan.'),
-            backgroundColor: Color(0xFFFFB020),
-          ),
-        );
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Otentikasi biometrik gagal atau dibatalkan.'),
+              backgroundColor: Color(0xFFFFB020),
+            ),
+          );
+        }
         return false;
       }
     }

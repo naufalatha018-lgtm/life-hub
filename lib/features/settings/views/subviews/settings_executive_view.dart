@@ -716,7 +716,7 @@ class _SettingsExecutiveViewState extends ConsumerState<SettingsExecutiveView> {
                       Expanded(
                         child: _buildMetricTile(
                           label: 'RUNWAY EST.',
-                          value: '${pipelineState.latestStats!.runwayMonths.toStringAsFixed(1)}',
+                          value: pipelineState.latestStats!.runwayMonths.toStringAsFixed(1),
                           unit: 'months',
                           color: AppColorPalette.electricEmerald,
                         ),

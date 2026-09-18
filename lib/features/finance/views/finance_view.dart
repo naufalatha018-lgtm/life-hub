@@ -1,18 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/localization/locale_provider.dart';
 import '../../../../core/services/finance_export_service.dart';
+import '../../../../core/theme/app_color_palette.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/app_executive_theme.dart';
+import '../../../../core/theme/premium_glass_card.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../../../core/widgets/executive_badge.dart';
 import '../models/finance_transaction.dart';
 import '../providers/finance_providers.dart';
 import 'widgets/add_transaction_dialog.dart';
 import 'widgets/finance_charts.dart';
 import 'widgets/finance_summary_cards.dart';
 import 'widgets/financial_health_gauge.dart';
+import 'widgets/location_tag_widget.dart';
 import 'widgets/safe_to_spend_card.dart';
+import 'widgets/velocity_pacing_card.dart';
 
 import '../../../../core/widgets/currency_toggle_chip.dart';
 import '../../../../core/utils/currency_provider.dart';
@@ -62,10 +69,11 @@ class FinanceView extends ConsumerWidget {
     final strings = ref.watch(appStringsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColorPalette.surfaceDeepDark,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: AppColorPalette.surfaceDeepDark,
         elevation: 0,
+        scrolledUnderElevation: 0,
         title: Row(
           children: [
             Container(
@@ -81,11 +89,7 @@ class FinanceView extends ConsumerWidget {
               child: Text(
                 strings.financeTitle,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                ),
+                style: AppExecutiveTheme.subsectionHeader.copyWith(fontSize: 18),
               ),
             ),
           ],
@@ -192,6 +196,10 @@ class FinanceView extends ConsumerWidget {
 
             // Safe-to-Spend Projection
             const SafeToSpendCard(),
+            const SizedBox(height: 14),
+
+            // Velocity Pacing – Hourly Burn Rate
+            const VelocityPacingCard(),
             const SizedBox(height: 16),
 
             // Real-Time Analytics Interactive Charts
@@ -240,30 +248,22 @@ class FinanceView extends ConsumerWidget {
 
             // Transactions List
             if (transactions.isEmpty)
-              Container(
-                width: double.infinity,
+              PremiumGlassCard(
                 padding: const EdgeInsets.all(32),
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.cardBorder),
-                ),
+                borderRadius: BorderRadius.circular(16),
+                backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.50),
                 child: Column(
                   children: [
-                    const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+                    const Icon(Icons.receipt_long_outlined, size: 48, color: AppColorPalette.textMuted),
                     const SizedBox(height: 12),
                     Text(
                       strings.noTransactionsTitle,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: AppExecutiveTheme.subsectionHeader,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       strings.noTransactionsSubtitle,
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+                      style: AppExecutiveTheme.bodyText,
                       textAlign: TextAlign.center,
                     ),
                   ],
@@ -319,30 +319,34 @@ class FinanceView extends ConsumerWidget {
                         ),
                       );
                     },
-                    child: InkWell(
+                    child: PremiumGlassCard(
                       onTap: () => _openAddTransaction(context, tx),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                       borderRadius: BorderRadius.circular(14),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.cardBorderSubtle, width: 1.0),
-                        ),
+                      backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.55),
+                      borderGradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          (isIncome ? AppColorPalette.electricEmerald : AppColorPalette.crimsonVelvet)
+                              .withOpacity(0.15),
+                          AppColorPalette.borderSubtle,
+                        ],
+                      ),
                         child: Row(
-                          children: [
+                        children: [
                             // Vector Category Icon Pill
                             Container(
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: (isIncome ? AppColors.income : AppColors.primaryLight)
-                                    .withValues(alpha: 0.1),
+                                color: (isIncome ? AppColorPalette.electricEmerald : AppColorPalette.deepAzure)
+                                    .withOpacity(0.12),
                                 borderRadius: BorderRadius.circular(10),
                               ),
                               child: Icon(
                                 AppConstants.getCategoryIcon(tx.category),
-                                color: isIncome ? AppColors.income : AppColors.primaryLight,
+                                color: isIncome ? AppColorPalette.electricEmerald : AppColorPalette.azureLight,
                                 size: 20,
                               ),
                             ),
@@ -417,16 +421,7 @@ class FinanceView extends ConsumerWidget {
                                       ),
                                       if (tx.location != null) ...[
                                         const SizedBox(width: 6),
-                                        const Icon(Icons.near_me_outlined, size: 11, color: AppColors.textMuted),
-                                        const SizedBox(width: 2),
-                                        Flexible(
-                                          child: Text(
-                                            tx.location!.displayName,
-                                            style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
+                                        LocationTagWidget(location: tx.location!),
                                       ],
                                     ],
                                   ),
@@ -435,20 +430,32 @@ class FinanceView extends ConsumerWidget {
                             ),
                             const SizedBox(width: 12),
 
-                            // Amount Display
-                            Text(
-                              formattedAmount,
-                              style: TextStyle(
-                                color: isIncome ? AppColors.income : AppColors.textPrimary,
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: -0.3,
-                              ),
+                            // Amount + income/expense badge
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  formattedAmount,
+                                  style: GoogleFonts.jetBrainsMono(
+                                    color: isIncome
+                                        ? AppColorPalette.electricEmerald
+                                        : AppColorPalette.crimsonVelvet,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                ExecutiveBadge(
+                                  label: isIncome ? 'IN' : 'OUT',
+                                  style: isIncome
+                                      ? ExecutiveBadgeStyle.emerald
+                                      : ExecutiveBadgeStyle.crimson,
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
-                    ),
                   );
                 },
               ),

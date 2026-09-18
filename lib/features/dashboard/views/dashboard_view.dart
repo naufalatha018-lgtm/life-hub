@@ -1,20 +1,28 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+
 import '../../../core/localization/locale_provider.dart';
 import '../../../core/services/ai_service.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/glass_container.dart';
+import '../../../core/services/readiness_telemetry_service.dart';
+import '../../../core/theme/app_color_palette.dart';
+import '../../../core/theme/app_executive_theme.dart';
+import '../../../core/theme/premium_glass_card.dart';
 import '../../../core/utils/currency_formatter.dart';
+import '../../../core/widgets/executive_badge.dart';
 import '../../ai/views/ai_assistant_view.dart';
 import '../../emergency/views/emergency_card_view.dart';
 import '../../finance/providers/finance_providers.dart';
 import '../../focus/views/focus_view.dart';
 import '../../habits/providers/habits_provider.dart';
+import '../../habits/views/habits_view.dart';
 import '../../wellness/providers/wellness_provider.dart';
 import '../../wellness/views/wellness_view.dart';
 import '../../wellness/views/widgets/live_health_metrics_card.dart';
-import '../../habits/views/habits_view.dart';
+import 'proof_of_work_card_generator.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AI insight provider
@@ -30,9 +38,24 @@ final _aiInsightProvider = FutureProvider.autoDispose<String?>((ref) async {
   return AiService.instance.generateFinancialInsight(
     totalIncome: monthlyIncome,
     totalExpenses: monthlyExpense,
-    categoryBreakdown: const {}, // simplified; in full impl would query per-category
+    categoryBreakdown: const {},
     language: lang,
   );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Readiness Telemetry Provider
+// ─────────────────────────────────────────────────────────────────────────────
+
+final _readinessScoreProvider = FutureProvider.autoDispose<int>((ref) async {
+  // Inject current pending task count for task-load weighting
+  final habitsAsync = ref.watch(habitsNotifierProvider);
+  final habitsState = habitsAsync.valueOrNull;
+  final pendingCount = habitsState != null
+      ? habitsState.activeCount - habitsState.todayCompletedCount
+      : 0;
+  ReadinessTelemetryService.instance.setTaskLoad(pendingCount);
+  return ReadinessTelemetryService.instance.computeScore();
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -52,160 +75,55 @@ class DashboardView extends ConsumerWidget {
     final monthlyIncome = ref.watch(totalIncomeCentsProvider);
     final monthlyExpense = ref.watch(totalExpenseCentsProvider);
     final aiInsight = ref.watch(_aiInsightProvider);
+    final readinessAsync = ref.watch(_readinessScoreProvider);
     final now = DateTime.now();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColorPalette.surfaceDeepDark,
       body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
         slivers: [
           // ── Hero Header ─────────────────────────────────────────────────
           SliverAppBar(
-            expandedHeight: 160,
+            expandedHeight: 180,
             floating: false,
             pinned: true,
             elevation: 0,
-            backgroundColor: const Color(0xFF0284C7),
+            scrolledUnderElevation: 0,
+            backgroundColor: AppColorPalette.surfaceDeepDark,
             flexibleSpace: FlexibleSpaceBar(
-              background: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF0F172A), Color(0xFF0284C7), Color(0xFF38BDF8)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    stops: [0.0, 0.6, 1.0],
-                  ),
-                ),
-                child: Stack(
-                  children: [
-                    // Decorative circles
-                    Positioned(
-                      right: -40,
-                      top: -40,
-                      child: Container(
-                        width: 160,
-                        height: 160,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.05),
-                        ),
-                      ),
-                    ),
-                    Positioned(
-                      right: 40,
-                      top: 60,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withOpacity(0.06),
-                        ),
-                      ),
-                    ),
-                    SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        strings.dashboardTitle,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w800,
-                                          letterSpacing: -0.5,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                // AI Assistant button
-                                if (AiService.instance.isAvailable)
-                                  GestureDetector(
-                                    onTap: () => Navigator.of(context).push(
-                                      MaterialPageRoute(builder: (_) => const AiAssistantView()),
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.all(10),
-                                      decoration: BoxDecoration(
-                                        gradient: const LinearGradient(
-                                          colors: [Color(0xFF7C3AED), Color(0xFF0284C7)],
-                                        ),
-                                        borderRadius: BorderRadius.circular(12),
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: const Color(0xFF7C3AED).withOpacity(0.4),
-                                            blurRadius: 12,
-                                            offset: const Offset(0, 4),
-                                          ),
-                                        ],
-                                      ),
-                                      child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 18),
-                                    ),
-                                  ),
-                                const SizedBox(width: 8),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: Colors.white.withOpacity(0.15),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    DateFormat('EEE, d MMM').format(now),
-                                    style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 14),
-                            // Net Worth strip
-                            Row(
-                              children: [
-                                _HeaderPill(
-                                  icon: Icons.arrow_upward_rounded,
-                                  value: CurrencyFormatter.formatCents(monthlyIncome),
-                                  color: AppColors.income,
-                                ),
-                                const SizedBox(width: 10),
-                                _HeaderPill(
-                                  icon: Icons.arrow_downward_rounded,
-                                  value: CurrencyFormatter.formatCents(monthlyExpense),
-                                  color: AppColors.expense,
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+              background: _DashboardHeroHeader(
+                now: now,
+                monthlyIncome: monthlyIncome,
+                monthlyExpense: monthlyExpense,
+                strings: strings,
               ),
             ),
           ),
 
           // ── Body ─────────────────────────────────────────────────────────
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
 
+                // ── Daily Readiness Gauge ───────────────────────────────────
+                readinessAsync.when(
+                  loading: () => const SizedBox.shrink(),
+                  error: (_, __) => const SizedBox.shrink(),
+                  data: (score) => _ReadinessGaugeCard(score: score),
+                ),
+                const SizedBox(height: 14),
+
                 // ── Net Balance Card ────────────────────────────────────────
                 _NetBalanceCard(netBalance: netBalance),
-                const SizedBox(height: 16),
+                const SizedBox(height: 14),
 
                 // ── AI Insight Card ─────────────────────────────────────────
-                if (AiService.instance.isAvailable)
+                if (AiService.instance.isAvailable) ...[
                   _AiInsightCard(insight: aiInsight, strings: strings),
-                if (AiService.instance.isAvailable)
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
+                ],
 
                 // ── Finance Summary ─────────────────────────────────────────
                 _SectionHeader(title: strings.dashboardFinanceSummary),
@@ -216,8 +134,7 @@ class DashboardView extends ConsumerWidget {
                       child: _MetricCard(
                         label: strings.income,
                         value: CurrencyFormatter.formatCents(monthlyIncome),
-                        prefix: '',
-                        color: AppColors.income,
+                        color: AppColorPalette.electricEmerald,
                         icon: Icons.trending_up_rounded,
                       ),
                     ),
@@ -226,8 +143,7 @@ class DashboardView extends ConsumerWidget {
                       child: _MetricCard(
                         label: strings.totalExpenses,
                         value: CurrencyFormatter.formatCents(monthlyExpense),
-                        prefix: '',
-                        color: AppColors.expense,
+                        color: AppColorPalette.crimsonVelvet,
                         icon: Icons.trending_down_rounded,
                       ),
                     ),
@@ -239,20 +155,38 @@ class DashboardView extends ConsumerWidget {
                 _SectionHeader(
                   title: strings.dashboardHabits,
                   action: TextButton(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HabitsView())),
-                    child: Text(strings.viewAll, style: const TextStyle(color: AppColors.primary, fontSize: 12)),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const HabitsView()),
+                    ),
+                    child: Text(
+                      strings.viewAll,
+                      style: AppExecutiveTheme.functionalCaption.copyWith(
+                        color: AppColorPalette.azureLight,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
                 habitsAsync.when(
-                  loading: () => const SizedBox(height: 60, child: Center(child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))),
+                  loading: () => const SizedBox(
+                    height: 60,
+                    child: Center(
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColorPalette.deepAzure,
+                      ),
+                    ),
+                  ),
                   error: (_, __) => const SizedBox(),
                   data: (state) {
                     if (state.habits.isEmpty) {
                       return _EmptyModuleCard(
                         icon: Icons.local_fire_department_outlined,
                         label: strings.dashboardNoHabits,
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HabitsView())),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const HabitsView()),
+                        ),
                       );
                     }
                     return _HabitsSummaryCard(state: state, lang: lang);
@@ -264,8 +198,16 @@ class DashboardView extends ConsumerWidget {
                 _SectionHeader(
                   title: strings.dashboardWellness,
                   action: TextButton(
-                    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WellnessView())),
-                    child: Text(strings.viewAll, style: const TextStyle(color: AppColors.primary, fontSize: 12)),
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const WellnessView()),
+                    ),
+                    child: Text(
+                      strings.viewAll,
+                      style: AppExecutiveTheme.functionalCaption.copyWith(
+                        color: AppColorPalette.azureLight,
+                        letterSpacing: 0.4,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -283,42 +225,310 @@ class DashboardView extends ConsumerWidget {
                   crossAxisCount: 2,
                   crossAxisSpacing: 10,
                   mainAxisSpacing: 10,
-                  childAspectRatio: 1.6,
+                  childAspectRatio: 1.65,
                   children: [
                     _QuickModuleCard(
                       icon: Icons.timer_rounded,
                       label: strings.focusTitle,
-                      color: AppColors.primary,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FocusView())),
+                      accentColor: AppColorPalette.deepAzure,
+                      badgeStyle: ExecutiveBadgeStyle.azure,
+                      badgeLabel: 'FOCUS',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const FocusView()),
+                      ),
                     ),
                     _QuickModuleCard(
                       icon: Icons.emergency_rounded,
                       label: strings.emergencyCardTitle,
-                      color: Colors.red,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const EmergencyCardView())),
+                      accentColor: AppColorPalette.crimsonVelvet,
+                      badgeStyle: ExecutiveBadgeStyle.crimson,
+                      badgeLabel: 'SOS',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const EmergencyCardView()),
+                      ),
                     ),
                     _QuickModuleCard(
                       icon: Icons.spa_rounded,
                       label: strings.wellnessTitle,
-                      color: AppColors.habitMindfulness,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const WellnessView())),
+                      accentColor: AppColorPalette.electricEmerald,
+                      badgeStyle: ExecutiveBadgeStyle.emerald,
+                      badgeLabel: 'WELLNESS',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const WellnessView()),
+                      ),
                     ),
                     _QuickModuleCard(
                       icon: Icons.local_fire_department_rounded,
                       label: strings.habitsTitle,
-                      color: AppColors.streakActive,
-                      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HabitsView())),
+                      accentColor: AppColorPalette.warningAmber,
+                      badgeStyle: ExecutiveBadgeStyle.amber,
+                      badgeLabel: 'HABITS',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const HabitsView()),
+                      ),
                     ),
                     if (AiService.instance.isAvailable)
                       _QuickModuleCard(
                         icon: Icons.auto_awesome_rounded,
                         label: strings.aiAssistantTitle,
-                        color: const Color(0xFF7C3AED),
-                        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AiAssistantView())),
+                        accentColor: AppColorPalette.lightIndigo,
+                        badgeStyle: ExecutiveBadgeStyle.neutral,
+                        badgeLabel: 'AI',
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const AiAssistantView()),
+                        ),
                       ),
+                    _QuickModuleCard(
+                      icon: Icons.workspace_premium_rounded,
+                      label: 'Proof of Work',
+                      accentColor: AppColorPalette.warningAmber,
+                      badgeStyle: ExecutiveBadgeStyle.amber,
+                      badgeLabel: 'PROOF',
+                      onTap: () => _showProofOfWorkSheet(context),
+                    ),
                   ],
                 ),
               ]),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Proof of Work bottom-sheet launcher
+// ─────────────────────────────────────────────────────────────────────────────
+
+void _showProofOfWorkSheet(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) => DraggableScrollableSheet(
+      initialChildSize: 0.90,
+      minChildSize: 0.55,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, controller) => Container(
+        decoration: const BoxDecoration(
+          color: AppColorPalette.surfaceDeepDark,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            // Drag handle
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColorPalette.borderSubtle,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColorPalette.warningAmber.withOpacity(0.14),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.workspace_premium_rounded,
+                      color: AppColorPalette.warningAmber,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Proof of Work',
+                        style: AppExecutiveTheme.subsectionHeader.copyWith(fontSize: 16),
+                      ),
+                      Text(
+                        'Exportable performance snapshot',
+                        style: AppExecutiveTheme.functionalCaption,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: AppColorPalette.borderSubtle, height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
+                child: const ProofOfWorkCardGenerator(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Hero Header
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DashboardHeroHeader extends StatelessWidget {
+  final DateTime now;
+  final int monthlyIncome;
+  final int monthlyExpense;
+  final dynamic strings;
+
+  const _DashboardHeroHeader({
+    required this.now,
+    required this.monthlyIncome,
+    required this.monthlyExpense,
+    required this.strings,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            AppColorPalette.surfaceDeepDark,
+            Color(0xFF0D1526),
+            Color(0xFF0A1020),
+          ],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Stack(
+        children: [
+          // Decorative radial glow – top right
+          Positioned(
+            right: -60,
+            top: -60,
+            child: Container(
+              width: 220,
+              height: 220,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColorPalette.deepAzure.withOpacity(0.18),
+                    AppColorPalette.deepAzure.withOpacity(0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          // Decorative radial glow – bottom left
+          Positioned(
+            left: -30,
+            bottom: -20,
+            child: Container(
+              width: 140,
+              height: 140,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    AppColorPalette.electricEmerald.withOpacity(0.10),
+                    AppColorPalette.electricEmerald.withOpacity(0.0),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              strings.dashboardTitle,
+                              style: AppExecutiveTheme.sectionHeader.copyWith(
+                                fontSize: 22,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.6,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              DateFormat('EEEE, d MMMM yyyy').format(now),
+                              style: AppExecutiveTheme.functionalCaption.copyWith(
+                                color: AppColorPalette.textMuted,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (AiService.instance.isAvailable)
+                        GestureDetector(
+                          onTap: () => Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const AiAssistantView()),
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [
+                                  AppColorPalette.lightIndigo,
+                                  AppColorPalette.deepAzure,
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AppColorPalette.deepAzure.withOpacity(0.4),
+                                  blurRadius: 14,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.auto_awesome_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  // Income / Expense strip pills
+                  Row(
+                    children: [
+                      _HeaderPill(
+                        icon: Icons.arrow_upward_rounded,
+                        value: CurrencyFormatter.formatCents(monthlyIncome),
+                        color: AppColorPalette.electricEmerald,
+                      ),
+                      const SizedBox(width: 10),
+                      _HeaderPill(
+                        icon: Icons.arrow_downward_rounded,
+                        value: CurrencyFormatter.formatCents(monthlyExpense),
+                        color: AppColorPalette.crimsonVelvet,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -340,22 +550,187 @@ class _HeaderPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.12),
+        color: color.withOpacity(0.10),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        border: Border.all(color: color.withOpacity(0.30)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 12),
-          const SizedBox(width: 4),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+          const SizedBox(width: 6),
+          Text(
+            value,
+            style: GoogleFonts.jetBrainsMono(
+              color: color,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Readiness Gauge Card
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ReadinessGaugeCard extends StatelessWidget {
+  final int score;
+  const _ReadinessGaugeCard({required this.score});
+
+  Color get _scoreColor {
+    if (score >= 80) return AppColorPalette.electricEmerald;
+    if (score >= 55) return AppColorPalette.warningAmber;
+    return AppColorPalette.crimsonVelvet;
+  }
+
+  String get _scoreLabel {
+    if (score >= 80) return 'PEAK';
+    if (score >= 55) return 'MODERATE';
+    return 'LOW';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(20),
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.60),
+      child: Row(
+        children: [
+          // Radial Gauge Arc
+          SizedBox(
+            width: 80,
+            height: 80,
+            child: CustomPaint(
+              painter: _RadialGaugePainter(
+                fraction: score / 100.0,
+                color: _scoreColor,
+                trackColor: AppColorPalette.borderSubtle,
+              ),
+              child: Center(
+                child: Text(
+                  '$score',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w700,
+                    color: _scoreColor,
+                    height: 1.0,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Daily Readiness',
+                      style: AppExecutiveTheme.subsectionHeader.copyWith(fontSize: 15),
+                    ),
+                    const SizedBox(width: 8),
+                    ExecutiveBadge(
+                      label: _scoreLabel,
+                      style: score >= 80
+                          ? ExecutiveBadgeStyle.emerald
+                          : score >= 55
+                              ? ExecutiveBadgeStyle.amber
+                              : ExecutiveBadgeStyle.crimson,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Sleep · Heart Rate · Task Load',
+                  style: AppExecutiveTheme.functionalCaption,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Radial Gauge Painter
+class _RadialGaugePainter extends CustomPainter {
+  final double fraction;
+  final Color color;
+  final Color trackColor;
+  const _RadialGaugePainter({
+    required this.fraction,
+    required this.color,
+    required this.trackColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width / 2) - 6;
+    const startAngle = math.pi * 0.75;
+    const sweepAngle = math.pi * 1.5;
+
+    final trackPaint = Paint()
+      ..color = trackColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+
+    final valuePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 6
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      startAngle,
+      sweepAngle,
+      false,
+      trackPaint,
+    );
+
+    if (fraction > 0) {
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle * fraction.clamp(0.0, 1.0),
+        false,
+        valuePaint,
+      );
+    }
+
+    // Glow layer
+    if (fraction > 0) {
+      final glowPaint = Paint()
+        ..color = color.withOpacity(0.25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 12
+        ..strokeCap = StrokeCap.round
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4);
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        startAngle,
+        sweepAngle * fraction.clamp(0.0, 1.0),
+        false,
+        glowPaint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RadialGaugePainter old) =>
+      old.fraction != fraction || old.color != color;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -369,43 +744,44 @@ class _NetBalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPositive = netBalance >= 0;
-    final color = isPositive ? AppColors.income : AppColors.expense;
+    final accent = isPositive ? AppColorPalette.electricEmerald : AppColorPalette.crimsonVelvet;
+    final dimColor = isPositive ? AppColorPalette.emeraldDim : AppColorPalette.crimsonDim;
 
-    return Container(
-      width: double.infinity,
+    return PremiumGlassCard(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            color.withOpacity(0.12),
-            color.withOpacity(0.04),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: color.withOpacity(0.25)),
-        boxShadow: [
-          BoxShadow(
-            color: color.withOpacity(0.08),
-            blurRadius: 20,
-            offset: const Offset(0, 6),
-          ),
+      borderRadius: BorderRadius.circular(20),
+      backgroundColor: dimColor.withOpacity(0.35),
+      borderGradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          accent.withOpacity(0.35),
+          accent.withOpacity(0.10),
         ],
       ),
+      customShadows: [
+        BoxShadow(
+          color: accent.withOpacity(0.12),
+          blurRadius: 24,
+          offset: const Offset(0, 8),
+        ),
+      ],
       child: Row(
         children: [
           Container(
-            width: 48,
-            height: 48,
+            width: 52,
+            height: 52,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: accent.withOpacity(0.14),
               borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withOpacity(0.30)),
             ),
             child: Icon(
-              isPositive ? Icons.account_balance_wallet_rounded : Icons.warning_rounded,
-              color: color,
-              size: 24,
+              isPositive
+                  ? Icons.account_balance_wallet_rounded
+                  : Icons.warning_rounded,
+              color: accent,
+              size: 26,
             ),
           ),
           const SizedBox(width: 16),
@@ -414,20 +790,31 @@ class _NetBalanceCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Net Balance',
-                  style: TextStyle(color: color.withOpacity(0.8), fontSize: 12, fontWeight: FontWeight.w500),
+                  'NET BALANCE',
+                  style: AppExecutiveTheme.functionalCaption.copyWith(
+                    color: accent.withOpacity(0.80),
+                  ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  '${isPositive ? '+' : '-'}${CurrencyFormatter.formatCents(netBalance.abs())}',
-                  style: TextStyle(color: color, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${isPositive ? '+' : '-'}${CurrencyFormatter.formatCents(netBalance.abs())}',
+                    style: GoogleFonts.jetBrainsMono(
+                      color: accent,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
           Icon(
             isPositive ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-            color: color,
+            color: accent,
             size: 28,
           ),
         ],
@@ -447,22 +834,16 @@ class _AiInsightCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return PremiumGlassCard(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF1E1035), Color(0xFF0F2044)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF7C3AED).withOpacity(0.3)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF7C3AED).withOpacity(0.15),
-            blurRadius: 16,
-            offset: const Offset(0, 4),
-          ),
+      borderRadius: BorderRadius.circular(18),
+      backgroundColor: AppColorPalette.indigoDim.withOpacity(0.40),
+      borderGradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          AppColorPalette.lightIndigo.withOpacity(0.35),
+          AppColorPalette.deepAzure.withOpacity(0.15),
         ],
       ),
       child: Column(
@@ -474,7 +855,9 @@ class _AiInsightCard extends StatelessWidget {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [Color(0xFF7C3AED), Color(0xFF0284C7)]),
+                  gradient: const LinearGradient(
+                    colors: [AppColorPalette.lightIndigo, AppColorPalette.deepAzure],
+                  ),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 16),
@@ -482,10 +865,10 @@ class _AiInsightCard extends StatelessWidget {
               const SizedBox(width: 10),
               Text(
                 strings.aiInsightTitle,
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                style: AppExecutiveTheme.subsectionHeader.copyWith(fontSize: 14),
               ),
               const Spacer(),
-              const Icon(Icons.arrow_forward_ios_rounded, color: Color(0xFF7C3AED), size: 12),
+              const ExecutiveBadge(label: 'AI', style: ExecutiveBadgeStyle.neutral),
             ],
           ),
           const SizedBox(height: 12),
@@ -495,25 +878,27 @@ class _AiInsightCard extends StatelessWidget {
                 const SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF7C3AED)),
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColorPalette.lightIndigo,
+                  ),
                 ),
                 const SizedBox(width: 10),
                 Text(
                   strings.aiInsightLoading,
-                  style: const TextStyle(color: Colors.white60, fontSize: 13),
+                  style: AppExecutiveTheme.bodyText,
                 ),
               ],
             ),
             error: (_, __) => Text(
               strings.aiInsightError,
-              style: const TextStyle(color: Colors.white54, fontSize: 13),
+              style: AppExecutiveTheme.bodyText,
             ),
             data: (text) => Text(
               text ?? strings.aiInsightError,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                height: 1.5,
+              style: AppExecutiveTheme.bodyText.copyWith(
+                color: AppColorPalette.textSecondary,
+                height: 1.55,
               ),
             ),
           ),
@@ -539,7 +924,7 @@ class _SectionHeader extends StatelessWidget {
         Expanded(
           child: Text(
             title,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.w700),
+            style: AppExecutiveTheme.subsectionHeader,
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -557,37 +942,45 @@ class _MetricCard extends StatelessWidget {
   const _MetricCard({
     required this.label,
     required this.value,
-    required this.prefix,
     required this.color,
     required this.icon,
   });
   final String label;
   final String value;
-  final String prefix;
   final Color color;
   final IconData icon;
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      blur: 10,
-      backgroundColor: AppColors.surface,
-      borderColor: color.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(14),
-      padding: const EdgeInsets.all(14),
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(16),
+      backgroundColor: color.withOpacity(0.07),
+      borderGradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [color.withOpacity(0.30), color.withOpacity(0.08)],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(color: AppColors.textSecondary, fontSize: 10)),
-          const SizedBox(height: 2),
+          Icon(icon, color: color, size: 20),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: AppExecutiveTheme.functionalCaption,
+          ),
+          const SizedBox(height: 4),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
-              '$prefix$value',
-              style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.w800),
+              value,
+              style: GoogleFonts.jetBrainsMono(
+                color: color,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],
@@ -610,33 +1003,59 @@ class _HabitsSummaryCard extends StatelessWidget {
     final label = lang == 'id'
         ? '${state.todayCompletedCount} / ${state.activeCount} kebiasaan selesai hari ini'
         : '${state.todayCompletedCount} / ${state.activeCount} habits done today';
+    final progress =
+        state.activeCount > 0 ? state.todayCompletedCount / state.activeCount : 0.0;
 
-    return GlassContainer(
-      blur: 10,
-      backgroundColor: AppColors.surface,
-      borderColor: AppColors.cardBorder,
-      borderRadius: BorderRadius.circular(14),
-      padding: const EdgeInsets.all(14),
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(16),
+      backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.60),
       child: Row(
         children: [
-          const Icon(Icons.local_fire_department_rounded, color: AppColors.streakActive, size: 28),
-          const SizedBox(width: 12),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColorPalette.warningAmber.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.local_fire_department_rounded,
+              color: AppColorPalette.warningAmber,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 6),
+                Text(
+                  label,
+                  style: AppExecutiveTheme.bodyMedium.copyWith(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: state.activeCount > 0 ? state.todayCompletedCount / state.activeCount : 0,
-                    backgroundColor: AppColors.streakEmpty,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.streakActive),
-                    minHeight: 6,
+                    value: progress,
+                    backgroundColor: AppColorPalette.borderSubtle,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColorPalette.warningAmber,
+                    ),
+                    minHeight: 5,
                   ),
                 ),
               ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            '${(progress * 100).round()}%',
+            style: GoogleFonts.jetBrainsMono(
+              color: AppColorPalette.warningAmber,
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -655,39 +1074,64 @@ class _WaterSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassContainer(
-      blur: 10,
-      backgroundColor: AppColors.surface,
-      borderColor: AppColors.cardBorder,
-      borderRadius: BorderRadius.circular(14),
-      padding: const EdgeInsets.all(14),
+    return PremiumGlassCard(
+      padding: const EdgeInsets.all(16),
+      borderRadius: BorderRadius.circular(16),
+      backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.60),
       child: Row(
         children: [
-          const Icon(Icons.water_drop_rounded, color: AppColors.waterBlue, size: 28),
-          const SizedBox(width: 12),
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0284C7).withOpacity(0.14),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(
+              Icons.water_drop_rounded,
+              color: Color(0xFF38BDF8),
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${waterState.todayTotalMl} / ${waterState.dailyGoalMl} ml',
-                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.w700),
+                  'Hydration',
+                  style: AppExecutiveTheme.functionalCaption,
                 ),
-                const SizedBox(height: 6),
+                const SizedBox(height: 4),
+                Text(
+                  '${waterState.todayTotalMl} / ${waterState.dailyGoalMl} ml',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: AppColorPalette.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 8),
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: waterState.progressFraction,
-                    backgroundColor: AppColors.waterBlue.withOpacity(0.15),
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.waterBlue),
-                    minHeight: 6,
+                    backgroundColor: AppColorPalette.borderSubtle,
+                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF38BDF8)),
+                    minHeight: 5,
                   ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 8),
-          if (waterState.goalReached) const Text('✅', style: TextStyle(fontSize: 18)),
+          if (waterState.goalReached) ...[
+            const SizedBox(width: 10),
+            const ExecutiveBadge(
+              label: 'GOAL',
+              style: ExecutiveBadgeStyle.emerald,
+              icon: Icons.check_rounded,
+            ),
+          ],
         ],
       ),
     );
@@ -699,33 +1143,56 @@ class _WaterSummaryCard extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _QuickModuleCard extends StatelessWidget {
-  const _QuickModuleCard({required this.icon, required this.label, required this.color, required this.onTap});
+  const _QuickModuleCard({
+    required this.icon,
+    required this.label,
+    required this.accentColor,
+    required this.badgeStyle,
+    required this.badgeLabel,
+    required this.onTap,
+  });
+
   final IconData icon;
   final String label;
-  final Color color;
+  final Color accentColor;
+  final ExecutiveBadgeStyle badgeStyle;
+  final String badgeLabel;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return PremiumGlassCard(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withOpacity(0.2)),
-        ),
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w700)),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      borderRadius: BorderRadius.circular(16),
+      backgroundColor: accentColor.withOpacity(0.07),
+      borderGradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [accentColor.withOpacity(0.28), accentColor.withOpacity(0.06)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: accentColor, size: 22),
+              const Spacer(),
+              ExecutiveBadge(label: badgeLabel, style: badgeStyle),
+            ],
+          ),
+          const Spacer(),
+          Text(
+            label,
+            style: AppExecutiveTheme.bodyMedium.copyWith(
+              color: AppColorPalette.textPrimary,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
-          ],
-        ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
       ),
     );
   }
@@ -743,24 +1210,20 @@ class _EmptyModuleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    return PremiumGlassCard(
       onTap: onTap,
+      padding: const EdgeInsets.all(16),
       borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.cardBorderSubtle),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, color: AppColors.textMuted, size: 20),
-            const SizedBox(width: 10),
-            Text(label, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
-          ],
-        ),
+      backgroundColor: AppColorPalette.surfaceSecondary.withOpacity(0.40),
+      child: Row(
+        children: [
+          Icon(icon, color: AppColorPalette.textMuted, size: 20),
+          const SizedBox(width: 10),
+          Text(label, style: AppExecutiveTheme.bodyText),
+        ],
       ),
     );
   }
 }
+
+
